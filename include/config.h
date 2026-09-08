@@ -21,3 +21,4 @@
 #define SCREEN_TIMEOUT_MS       15000   // 15 seconds screen auto-off
 #define FACTORY_RESET_HOLD_MS   10000   // 10 seconds continuous hold for reset
 #define RESET_CONFIRM_TIMEOUT   20000   // 20 seconds timeout to cancel reset prompt
+#define PAIRING_TIMEOUT_MS      30000   // 30 seconds to confirm new phone pairing

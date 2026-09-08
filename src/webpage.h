@@ -61,19 +61,22 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       --primary: #3b82f6;
       --primary-hover: #2563eb;
       --accent: #10b981;
+      --danger: #ef4444;
       --text: #f3f4f6;
       --text-muted: #9ca3af;
-      --btn-bg: #222a3a;
-      --btn-active: #323e57;
-      --pulse-glow: rgba(16, 185, 129, 0.4);
+      --dpad-bg: #1f2737;
+      --dpad-hover: #2d374d;
+      --btn-active: #3b82f640;
     }
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      -webkit-tap-highlight-color: transparent;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     body {
       background: var(--bg);
@@ -81,12 +84,13 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 12px 14px;
+      padding: 12px;
       min-height: 100vh;
+      overflow-x: hidden;
     }
     .container {
       width: 100%;
-      max-width: 420px;
+      max-width: 380px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -95,69 +99,67 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 4px 2px;
+      padding: 4px 6px;
     }
     .brand {
-      font-size: 1.05rem;
-      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 8px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.5px;
     }
     .brand-icon {
-      width: 24px;
-      height: 24px;
-    }
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background-color: #eab308;
-      transition: background-color 0.3s, box-shadow 0.3s;
-    }
-    .status-dot.connected {
-      background-color: var(--accent);
-      box-shadow: 0 0 10px var(--accent);
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
     }
     .header-links {
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-    .badge {
-      font-size: 0.75rem;
-      background: #25334d;
-      color: #93c5fd;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      border: 1px solid #3b82f640;
+      gap: 10px;
     }
     .config-link {
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 1.1rem;
-      padding: 4px;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      background: #0f766e40;
+      color: #34d399;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      border: 1px solid #10b98140;
+      font-weight: 500;
     }
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 14px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
-    /* Live Typing Console */
     .typing-card {
-      border: 1.5px solid #3b82f660;
-      background: #141822;
-      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .typing-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.8rem;
       color: var(--text-muted);
-      margin-bottom: 8px;
+      font-size: 0.8rem;
     }
     .live-indicator {
       display: flex;
@@ -165,16 +167,18 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       gap: 6px;
       color: var(--accent);
       font-weight: 600;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     .live-pulse {
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 8px var(--pulse-glow);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.4; transform: scale(0.9); }
     }
     .input-wrapper {
       position: relative;
@@ -183,19 +187,18 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
     }
     input[type="text"] {
       width: 100%;
-      padding: 14px 40px 14px 14px;
-      font-size: 1.1rem;
-      color: #fff;
+      padding: 12px 38px 12px 14px;
       background: #0d1017;
       border: 1px solid var(--card-border);
       border-radius: 12px;
+      color: #fff;
+      font-size: 1rem;
       outline: none;
-      user-select: text;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      user-select: auto;
+      -webkit-user-select: auto;
     }
     input[type="text"]:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
     }
     .clear-btn {
       position: absolute;
@@ -203,76 +206,82 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       background: none;
       border: none;
       color: var(--text-muted);
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       cursor: pointer;
       display: none;
-      padding: 4px;
     }
-    /* D-Pad Section */
     .dpad-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       grid-template-rows: repeat(3, 62px);
       gap: 8px;
       max-width: 250px;
-      margin: 4px auto;
+      margin: 0 auto;
     }
-    button {
-      background: var(--btn-bg);
+    .dpad-btn {
+      background: var(--dpad-bg);
       border: 1px solid var(--card-border);
-      color: var(--text);
-      font-size: 0.95rem;
-      font-weight: 600;
-      border-radius: 12px;
-      cursor: pointer;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 1.3rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.08s, transform 0.05s;
-      touch-action: manipulation;
+      cursor: pointer;
+      box-shadow: 0 3px 0 rgba(0,0,0,0.4);
     }
-    button:active {
+    .dpad-btn:active {
+      transform: translateY(2px);
+      box-shadow: none;
       background: var(--btn-active);
-      transform: scale(0.95);
-    }
-    .dpad-btn {
-      font-size: 1.4rem;
-      font-weight: bold;
-      border-radius: 14px;
     }
     .dpad-center {
       background: var(--primary);
-      border-color: var(--primary);
-      color: #fff;
+      font-weight: 700;
       font-size: 1.1rem;
     }
-    .dpad-center:active {
-      background: var(--primary-hover);
-    }
-    /* Navigation & Media Grids */
-    .keys-grid {
+    .keys-grid, .media-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
     }
-    .keys-grid button {
-      padding: 12px 6px;
-      font-size: 0.9rem;
-    }
     .media-grid {
-      display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
     }
-    .media-grid button {
-      padding: 10px 4px;
+    .keys-grid button, .media-grid button {
+      background: var(--dpad-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      color: #fff;
       font-size: 0.85rem;
+      font-weight: 600;
+      padding: 12px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .keys-grid button:active, .media-grid button:active {
+      background: var(--btn-active);
     }
     .feedback-toast {
       font-size: 0.8rem;
       color: var(--text-muted);
       text-align: center;
       min-height: 18px;
+    }
+    /* Pairing Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 13, 20, 0.9); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      padding: 20px; z-index: 1000;
+    }
+    .modal-card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 18px; padding: 24px; max-width: 360px; width: 100%;
+      text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
   </style>
 </head>
@@ -296,7 +305,7 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
           <span class="live-pulse"></span>
           Live Keystroke Stream
         </span>
-        <span id="charCount" style="font-size: 0.75rem;">Keystrokes sent live</span>
+        <span id="encStatus" style="font-size: 0.72rem; color: #38bdf8;">&#x1F512; Encrypted</span>
       </div>
       <div class="input-wrapper">
         <input 
@@ -354,16 +363,110 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
     <div class="feedback-toast" id="toast">Ready</div>
   </div>
 
+  <!-- Physical Pairing Modal -->
+  <div id="pairOverlay" class="modal-overlay">
+    <div class="modal-card">
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">&#x1F512;</div>
+      <h2 style="font-size: 1.2rem; margin-bottom: 8px;">Device Pairing Required</h2>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4;">
+        This TV remote requires physical authorization. Tap below, then <strong>press the physical button on the TV stick</strong> to approve this phone.
+      </p>
+      <button id="btnPair" style="width: 100%; padding: 12px; font-weight: bold; background: var(--primary); border: none; border-radius: 10px; color: #fff; cursor: pointer;" onclick="startPairing()">
+        Request Pairing
+      </button>
+      <div id="pairStatus" style="margin-top: 14px; font-size: 0.85rem; color: #38bdf8;"></div>
+    </div>
+  </div>
+
   <script>
+    const AUTH_REQUIRED = %AUTH_REQUIRED%;
+    let deviceToken = localStorage.getItem('tv_remote_token') || '';
+    let cryptoKey = null;
+
     const input = document.getElementById('liveInput');
     const clearBtn = document.getElementById('clearBtn');
     const toast = document.getElementById('toast');
     const connStatus = document.getElementById('connStatus');
+    const pairOverlay = document.getElementById('pairOverlay');
 
     let previousVal = '';
     let ws = null;
 
+    function hexToBytes(hex) {
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+      return bytes;
+    }
+
+    function bytesToHex(bytes) {
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Initialize AES-CTR in-browser keystroke encryption key
+    async function initCryptoKey() {
+      try {
+        if (!window.crypto || !window.crypto.subtle) return;
+        const seedStr = deviceToken || 'tv-remote-default-salt-v1';
+        const rawSeed = new TextEncoder().encode(seedStr);
+        const hash = await crypto.subtle.digest('SHA-256', rawSeed);
+        cryptoKey = await crypto.subtle.importKey('raw', hash, { name: 'AES-CTR' }, false, ['encrypt']);
+      } catch (e) {
+        console.warn('WebCrypto not available:', e);
+      }
+    }
+    initCryptoKey();
+
+    function getOrCreateDeviceId() {
+      let id = localStorage.getItem('tv_remote_devid');
+      if (!id) {
+        id = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('tv_remote_devid', id);
+      }
+      return id;
+    }
+
+    let pollTimer = null;
+    async function startPairing() {
+      const devId = getOrCreateDeviceId();
+      const statusEl = document.getElementById('pairStatus');
+      statusEl.innerText = 'Request sent! Press the button on the TV stick now...';
+      try {
+        await fetch('/api/pair_request?device=' + devId, { method: 'POST' });
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(async () => {
+          try {
+            const res = await fetch('/api/pair_status?device=' + devId);
+            const data = await res.json();
+            if (data.status === 'approved' && data.token) {
+              clearInterval(pollTimer);
+              localStorage.setItem('tv_remote_token', data.token);
+              deviceToken = data.token;
+              await initCryptoKey();
+              pairOverlay.style.display = 'none';
+              setToast('Device paired successfully! \u2713');
+              connectWS();
+            } else if (data.status === 'expired') {
+              clearInterval(pollTimer);
+              statusEl.innerText = 'Pairing timed out. Tap button to try again.';
+            }
+          } catch (e) {}
+        }, 1000);
+      } catch (e) {
+        statusEl.innerText = 'Error connecting to device.';
+      }
+    }
+
+    function checkAuthRequirement() {
+      if (AUTH_REQUIRED && !deviceToken) {
+        pairOverlay.style.display = 'flex';
+        return false;
+      }
+      return true;
+    }
+
     function connectWS() {
+      if (!checkAuthRequirement()) return;
+
       const loc = window.location;
       const wsUri = (loc.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + loc.hostname + ':81/';
       ws = new WebSocket(wsUri);
@@ -371,6 +474,17 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       ws.onopen = () => {
         connStatus.innerText = 'Connected (Live)';
         setToast('Connected! Ready to send commands');
+        if (deviceToken) {
+          ws.send('AUTH:' + deviceToken);
+        }
+      };
+
+      ws.onmessage = (e) => {
+        if (e.data === 'AUTH_REQUIRED') {
+          pairOverlay.style.display = 'flex';
+        } else if (e.data === 'AUTH_OK') {
+          pairOverlay.style.display = 'none';
+        }
       };
 
       ws.onclose = () => {
@@ -386,14 +500,42 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
 
     connectWS();
 
-    function sendPayload(msg) {
+    async function sendPayload(msg) {
+      // In-browser WebCrypto encryption (Item 1 Option A)
+      if (cryptoKey) {
+        try {
+          const counter = new Uint8Array(16);
+          crypto.getRandomValues(counter);
+          const encoded = new TextEncoder().encode(msg);
+          const ciphertext = await crypto.subtle.encrypt(
+            { name: 'AES-CTR', counter: counter, length: 64 },
+            cryptoKey,
+            encoded
+          );
+          const encPacket = 'E:' + bytesToHex(counter) + ':' + bytesToHex(new Uint8Array(ciphertext));
+          transmit(encPacket);
+          return;
+        } catch (err) {
+          console.warn('Crypto error, sending plain:', err);
+        }
+      }
+      transmit(msg);
+    }
+
+    function transmit(packet) {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(msg);
+        ws.send(packet);
       } else {
-        if (msg.startsWith('K:')) {
-          fetch('/sendkey', { method: 'POST', body: new URLSearchParams({ key: msg.slice(2) }) });
-        } else if (msg.startsWith('T:')) {
-          fetch('/sendtext', { method: 'POST', body: new URLSearchParams({ text: msg.slice(2) }) });
+        if (packet.startsWith('K:') || packet.startsWith('E:')) {
+          fetch('/sendkey', { 
+            method: 'POST', 
+            body: new URLSearchParams({ key: packet, token: deviceToken }) 
+          });
+        } else if (packet.startsWith('T:')) {
+          fetch('/sendtext', { 
+            method: 'POST', 
+            body: new URLSearchParams({ text: packet.slice(2), token: deviceToken }) 
+          });
         }
       }
     }
@@ -489,7 +631,7 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10131a">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <title>Wi-Fi Setup - %ROOM_NAME% TV</title>
+  <title>Wi-Fi &amp; Device Setup - %ROOM_NAME% TV</title>
   <style>
     :root {
       --bg: #10131a;
@@ -553,7 +695,7 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
       padding: 4px 10px;
       border-radius: 9999px;
       border: 1px solid #10b98140;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
     .form-group {
       display: flex;
@@ -604,6 +746,7 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
       border-radius: 12px;
       cursor: pointer;
       transition: background 0.15s;
+      margin-top: 10px;
     }
     .btn-submit:active {
       background: var(--primary-hover);
@@ -621,7 +764,7 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
       color: var(--primary);
       text-decoration: none;
       font-size: 0.9rem;
-      margin-top: 10px;
+      margin-top: 14px;
     }
   </style>
 </head>
@@ -633,19 +776,38 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
     </header>
 
     <div class="card">
-      <span class="badge">&#x1F512; Hardware eFuse HMAC Secured</span>
+      %CRYPTO_STATUS_BADGE%
       
       <form action="/savewifi" method="POST">
         <div class="form-group">
-          <label for="ssid">Select Wi-Fi Network</label>
-          <select id="ssid" name="ssid" required>
-            %WIFI_OPTIONS%
+          <label for="op_mode">Network Operating Mode</label>
+          <select id="op_mode" name="op_mode" onchange="toggleMode()">
+            <option value="sta" %MODE_STA_SELECTED%>Connect to Home Wi-Fi (Station)</option>
+            <option value="ap" %MODE_AP_SELECTED%>Standalone Private Wi-Fi (Access Point)</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label for="manual_ssid">Or enter SSID manually</label>
-          <input type="text" id="manual_ssid" name="manual_ssid" placeholder="Network Name (if hidden)">
+        <!-- Station Mode Section -->
+        <div id="staSection">
+          <div class="form-group">
+            <label for="ssid">Select Wi-Fi Network</label>
+            <select id="ssid" name="ssid">
+              %WIFI_OPTIONS%
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ssid_custom">Or enter SSID manually</label>
+            <input type="text" id="ssid_custom" name="ssid_custom" placeholder="Network Name (if hidden)">
+          </div>
+        </div>
+
+        <!-- Standalone AP Mode Section -->
+        <div id="apSection" style="display: none;">
+          <div class="form-group">
+            <label for="ap_ssid">Access Point Name (SSID)</label>
+            <input type="text" id="ap_ssid" name="ap_ssid" value="%AP_SSID%" placeholder="e.g. My-TV-Remote">
+          </div>
         </div>
 
         <div class="form-group">
@@ -667,14 +829,23 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
           <small style="color: var(--text-muted); font-size: 0.75rem;">Access via http://&lt;hostname&gt;.local</small>
         </div>
 
+        <!-- Device Restriction Option -->
+        <div class="form-group" style="display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 6px 0;">
+          <input type="checkbox" id="auth_required" name="auth_required" value="1" %AUTH_CHECKED% style="width: 20px; height: 20px; margin-top: 2px;">
+          <div>
+            <label for="auth_required" style="cursor: pointer; display: block; font-weight: 600; color: #fff;">Restrict remote control to approved devices only</label>
+            <small style="color: var(--text-muted); font-size: 0.75rem; display: block; line-height: 1.3; margin-top: 2px;">Requires clicking the physical button on the TV stick to approve new phones.</small>
+          </div>
+        </div>
+
         <button type="submit" class="btn-submit">Save &amp; Connect</button>
       </form>
 
       <p class="note">
-        Your Wi-Fi password will be encrypted using the ESP32-S3 Hardware HMAC key before being committed to non-volatile flash memory.
+        Your Wi-Fi password will be encrypted using the ESP32-S3 Hardware HMAC key before being committed to flash memory.
       </p>
 
-      <a href="/" class="back-link">&#x2190; Back to Remote Control</a>
+      %BACK_LINK%
     </div>
   </div>
 
@@ -690,6 +861,20 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         btn.innerText = 'Show';
       }
     }
+
+    function toggleMode() {
+      const mode = document.getElementById('op_mode').value;
+      const staSec = document.getElementById('staSection');
+      const apSec = document.getElementById('apSection');
+      if (mode === 'ap') {
+        staSec.style.display = 'none';
+        apSec.style.display = 'block';
+      } else {
+        staSec.style.display = 'block';
+        apSec.style.display = 'none';
+      }
+    }
+    toggleMode();
   </script>
 </body>
 </html>
@@ -746,7 +931,7 @@ const char PAGE_SAVED[] PROGMEM = R"rawliteral(
     <div class="check">&#x2714;</div>
     <h1>Credentials Encrypted &amp; Saved</h1>
     <p>
-      The dongle is restarting now to connect to your Wi-Fi.<br><br>
+      The dongle is restarting now to apply your configuration.<br><br>
       Once connected, open <strong>http://%MDNS_HOSTNAME%.local</strong> on any device on your Wi-Fi network!
     </p>
   </div>

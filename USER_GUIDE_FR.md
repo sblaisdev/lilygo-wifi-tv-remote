@@ -80,18 +80,19 @@ L'écran LCD s'allume immédiatement et affiche les informations suivantes :
 1. Lancez votre navigateur web préféré (Safari, Chrome, Firefox, Edge).
 2. Rendez-vous à l'adresse : **`http://192.168.4.1`** (ou `http://192.168.4.1/setup`).
 3. La page de configuration s'affiche :
-   - Cliquez sur **"Scan for Networks"** pour actualiser la liste des réseaux Wi-Fi 2,4 GHz à portée.
-   - Sélectionnez votre réseau domestique dans la liste déroulante.
-   - Saisissez le mot de passe de votre réseau Wi-Fi.
+   - **Mode de fonctionnement** : Choisissez **"Connect to existing Wi-Fi"** (mode Client) ou **"Standalone Access Point"** (crée son propre réseau Wi-Fi autonome sans routeur).
+   - Sélectionnez ou entrez le SSID et le mot de passe Wi-Fi.
    - *(Optionnel)* Modifiez le **Nom de la pièce** (ex. `Salon`, `Chambre`, `Home Cinéma`).
    - *(Optionnel)* Modifiez le **Nom d'hôte mDNS** (par défaut : `tv-remote`).
+   - *(Optionnel)* **Restreindre l'accès à la télécommande** : Cochez **"Restrict access to approved devices only"** pour exiger une confirmation par le bouton physique avant qu'un nouveau téléphone ne puisse envoyer des touches.
 4. Cliquez sur **"Save & Connect"**.
 
 ### Étape 5 : Connexion établie
-Le dongle chiffre immédiatement vos identifiants dans la mémoire sécurisée et redémarre. En quelques secondes, l'écran affiche :
-- **Texte Vert** : `WiFi: <Nom de votre réseau>`
+Le dongle chiffre immédiatement vos identifiants à l'aide de clés dérivées matériellement en AES-256 CTR (avec validation stricte fail-closed) et redémarre. En quelques secondes, l'écran affiche :
+- **Texte Vert** : `WiFi: <Nom de votre réseau>` (ou `AP: <Nom de votre SSID>`)
 - **Texte Jaune** : `http://<Adresse IP>`
 - **Texte Cyan** : `http://<nom-d-hote>.local`
+
 
 ---
 
@@ -158,10 +159,15 @@ stateDiagram-v2
     EffacementNVS --> RebootAP: Redémarrage en mode Setup AP
 ```
 
-### 1. Veille / Réveil de l'écran (Pression brève)
-- **Appui bref (< 1 seconde)** : Allume ou éteint manuellement l'écran LCD.
-- En fonctionnement normal, l'écran s'éteint automatiquement après **15 secondes** pour ne pas gêner dans l'obscurité lors du visionnage.
-- En **Mode Setup AP**, l'écran reste allumé en permanence pour que les identifiants soient toujours lisibles.
+### 1. Veille / Réveil de l'écran & Approbation d'appairage (Pression brève)
+- **Veille / Réveil** : Appui bref (< 1 seconde) pour allumer ou éteindre manuellement l'écran LCD. En fonctionnement normal, l'écran s'éteint automatiquement après **15 secondes** pour ne pas gêner dans l'obscurité.
+- **Approbation physique d'un appareil** : Si l'option "Restreindre l'accès" est activée et qu'un nouvel appareil demande l'accès, l'écran affiche une alerte jaune :
+  ```text
+  PAIRING REQUEST
+  Press button to approve
+  Timeout in 30s
+  ```
+  **Appuyez brièvement sur le bouton (< 10 secondes)** pour autoriser l'appareil. L'écran affiche `"DEVICE APPROVED!"` en vert et délivre un jeton HMAC cryptographique sauvegardé dans le `localStorage` du navigateur.
 
 ### 2. Procédure de Réinitialisation d'usine sécurisée (Maintien de 10 secondes)
 Pour éviter toute réinitialisation accidentelle, une confirmation en deux étapes est requise :
@@ -185,19 +191,27 @@ Pour éviter toute réinitialisation accidentelle, une confirmation en deux éta
 
 L'appareil intègre des standards de sécurité matérielle rigoureux :
 
-1. **Aucun identifiant en clair** :
-   - Ni le code source ni les binaires compilés ne contiennent votre SSID ou votre mot de passe personnel.
+1. **Aucun identifiant en clair & Sauvegarde Fail-Closed** :
+   - Ni le code source ni les binaires compilés ne contiennent votre SSID ou mot de passe.
    - Les identifiants stockés en mémoire flash sont protégés par un chiffrement **AES-256 en mode CTR**.
+   - **Garantie Fail-Closed** : Si le coprocesseur matériel HMAC ou la validation cryptographique échoue, l'appareil refuse d'écrire dans la mémoire NVS, affiche une alerte rouge sur l'écran et retourne une erreur HTTP 500.
 
-2. **Clé maître dérivée par le périphérique matériel HMAC de l'ESP32-S3** :
-   - La clé de chiffrement est calculée directement par le coprocesseur cryptographique interne **HMAC** (`esp_hmac.h`).
+2. **Clé maître dérivée par le coprocesseur matériel HMAC de l'ESP32-S3** :
+   - Les clés sont calculées directement par le périphérique interne **HMAC** (`esp_hmac.h`).
    - La clé maître est hébergée dans un bloc eFuse dédié et protégé en lecture (`KEY0` à `KEY5`) configuré pour `ESP_EFUSE_KEY_PURPOSE_HMAC_UP`.
-   - Le microprogramme détecte automatiquement la présence d'une clé HMAC existante au démarrage et **la réutilise immédiatement** pour éviter de griller inutilement d'autres eFuses.
-   - Une séparation de domaine stricte est appliquée grâce à une chaîne de contexte dédiée (`"project-wifi-v1"`).
+   - Le microprogramme détecte automatiquement la présence d'une clé HMAC existante au démarrage et **la réutilise immédiatement** sans griller de nouveaux eFuses.
+   - Une séparation de domaine stricte est appliquée avec des contextes distincts :
+     - `"project-wifi-v1"` : Pour le chiffrement des identifiants stockés.
+     - `"project-auth-v1"` : Pour la signature et vérification des jetons d'appairage.
 
-3. **Barrière de proximité physique** :
-   - Le point d'accès de configuration génère un mot de passe aléatoire de 8 caractères à chaque session grâce au générateur TRNG matériel.
-   - Ce mot de passe est transmis **exclusivement à l'écran LCD physique**. Quiconque souhaite configurer le dongle doit être physiquement présent dans la même pièce.
+3. **Barrière de proximité physique & Appairage d'appareils** :
+   - Le point d'accès initial génère un mot de passe aléatoire de 8 caractères affiché **exclusivement sur l'écran LCD physique**.
+   - **Appairage d'appareils (Méthode B)** : Lorsque la restriction d'accès est activée, un nouvel appareil ne peut envoyer aucune commande tant qu'il n'a pas été validé par un appui physique sur le bouton du dongle.
+   - **Isolation du mode Setup** : En mode configuration initiale, la racine `/` redirige strictement vers `/setup` ; aucune touche de télécommande n'est accessible avant la fin de la configuration.
+
+4. **Chiffrement des touches en transit (WebCrypto AES-CTR)** :
+   - Les frappes de touches envoyées par WebSocket et HTTP sont chiffrées dans le navigateur de l'utilisateur via l'API WebCrypto avant d'être transmises (`E:<nonce>:<ciphertext>`).
+
 
 ---
 

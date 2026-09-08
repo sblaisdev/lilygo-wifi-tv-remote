@@ -18,8 +18,11 @@ Firmware for the **LilyGO T-Dongle-S3** (ESP32-S3) turning the USB dongle into a
 
 ## 🚀 Key Highlights
 
-1. **Physical Proximity Barrier**: Setup Access Point (`TV-Remote-Setup`) uses a cryptographically secure 8-character random password generated via the ESP32-S3 TRNG and shown **exclusively on the physical 160×80 LCD**.
-2. **Zero Cleartext Credentials**: Wi-Fi credentials are encrypted using **AES-256 CTR** via the ESP32-S3 **Hardware HMAC Peripheral** (`KEY0`–`KEY5`) with automatic key slot reuse.
-3. **Sub-Millisecond Web Remote**: WebSocket-powered remote control with D-Pad navigation, media controls, volume, power, and live phone-to-TV typing.
-4. **PWA Ready**: Installable to iOS and Android home screens with a custom neon TV remote icon.
-5. **Fail-Safe Factory Reset**: 10-second button hold with two-step confirmation erases NVS flash while preserving hardware eFuses.
+1. **Physical Proximity Barrier & Device Pairing**: Setup Access Point (`TV-Remote-Setup`) uses a cryptographically secure 8-character random password generated via the ESP32-S3 TRNG and shown **exclusively on the physical 160×80 LCD**. Optional **Hardware Device Pairing (Method B)** requires physical button confirmation on the dongle before any client device can transmit keystrokes.
+2. **Zero Cleartext Credentials & Fail-Closed Security**: Wi-Fi credentials are encrypted using **AES-256 CTR** via the ESP32-S3 **Hardware HMAC Peripheral** (`KEY0`–`KEY5`) with automatic key slot reuse and strict fail-closed validation (no unencrypted fallbacks).
+3. **In-Transit Keystroke Encryption**: Keystrokes transmitted over WebSocket/HTTP are encrypted client-side using browser-native **WebCrypto AES-CTR** before broadcast over the local network.
+4. **Sub-Millisecond Web Remote**: WebSocket-powered remote control with D-Pad navigation, media controls, volume, power, and live phone-to-TV typing.
+5. **Standalone AP or Station Mode**: Connect to your existing home Wi-Fi or configure a permanent standalone hotspot for direct phone-to-TV control while traveling.
+6. **PWA Ready**: Installable to iOS and Android home screens with a custom neon TV remote icon.
+7. **Fail-Safe Factory Reset**: 10-second button hold with two-step confirmation erases NVS flash while preserving hardware eFuses.
+

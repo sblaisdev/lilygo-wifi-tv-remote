@@ -80,18 +80,19 @@ The on-board LCD screen illuminates immediately and displays:
 1. Open any web browser (Safari, Chrome, Firefox, Edge).
 2. Navigate to: **`http://192.168.4.1`** (or `http://192.168.4.1/setup`).
 3. The **Setup Portal** will load:
-   - Click **"Scan for Networks"** to refresh available 2.4 GHz Wi-Fi networks.
-   - Select your home Wi-Fi SSID from the dropdown list.
-   - Enter your home Wi-Fi password.
+   - **Operating Mode**: Choose **"Connect to existing Wi-Fi"** (Station mode) or **"Standalone Access Point"** (creates its own dedicated Wi-Fi network without a home router).
+   - Select or enter your Wi-Fi SSID and password.
    - *(Optional)* Customize the **Room Name** (e.g. `Bedroom`, `Basement Home Theater`).
    - *(Optional)* Customize the **mDNS Hostname** (default: `tv-remote`).
+   - *(Optional)* **Restrict Remote Access**: Check **"Restrict access to approved devices only"** to require physical button confirmation before any phone can send commands.
 4. Click **"Save & Connect"**.
 
 ### Step 5: Successful Connection
-The dongle will securely encrypt your Wi-Fi credentials into hardware NVS storage and restart. Within seconds, the LCD will display:
-- **Green Text**: `WiFi: <Your Network Name>`
+The dongle will securely encrypt your Wi-Fi credentials using hardware-derived AES-256 CTR (with fail-closed validation) into hardware NVS storage and restart. Within seconds, the LCD will display:
+- **Green Text**: `WiFi: <Your Network Name>` (or `AP: <Your SSID>`)
 - **Yellow Text**: `http://<IP Address>`
 - **Cyan Text**: `http://<hostname>.local`
+
 
 ---
 
@@ -158,10 +159,15 @@ stateDiagram-v2
     WipingNVS --> RebootAP: Reboot into Setup AP
 ```
 
-### 1. Screen Sleep / Wake (Short Press)
-- **Press once (< 1 second)** to turn the screen on or off.
-- In normal mode, the screen automatically goes to sleep after **15 seconds** to prevent distracting light while watching TV.
-- In **Setup AP Mode**, the screen remains permanently illuminated so you can easily read the connection details.
+### 1. Screen Sleep / Wake & Pairing Approval (Short Press)
+- **Screen Sleep / Wake**: Press once (< 1 second) to turn the screen on or off. In normal mode, the screen automatically goes to sleep after **15 seconds** to prevent distracting light while watching TV.
+- **Physical Pairing Approval**: If "Restrict access to approved devices" is enabled and a new device requests access, the screen displays a yellow alert:
+  ```text
+  PAIRING REQUEST
+  Press button to approve
+  Timeout in 30s
+  ```
+  **Press the button once (< 10 seconds)** to grant access. The screen confirms `"DEVICE APPROVED!"` in green and issues a cryptographically signed HMAC token stored in the browser's `localStorage`.
 
 ### 2. Factory Reset Safeguard (10-Second Hold)
 To prevent accidental resets, a two-step confirmation is required:
@@ -185,19 +191,28 @@ To prevent accidental resets, a two-step confirmation is required:
 
 Your device follows strict hardware-grade embedded security principles:
 
-1. **Zero Cleartext Credentials**:
-   - Neither source code nor compiled binaries contain your home Wi-Fi SSID or password.
+1. **Zero Cleartext Credentials & Fail-Closed Storage**:
+   - Neither source code nor compiled binaries contain your Wi-Fi SSID or password.
    - Wi-Fi credentials stored in flash memory are encrypted using **AES-256 CTR mode**.
+   - **Fail-Closed Guarantee**: If the hardware HMAC peripheral or cryptographic validation is unavailable, the device refuses to save credentials to NVS, shows a red LCD security alert, and returns HTTP 500.
 
 2. **ESP32-S3 Hardware HMAC Master Key**:
-   - The encryption key is derived using the chip's internal cryptographic **HMAC peripheral** (`esp_hmac.h`).
+   - Keys are derived using the chip's internal cryptographic **HMAC peripheral** (`esp_hmac.h`).
    - The master key resides in a dedicated, read-protected eFuse key slot (`KEY0`–`KEY5`) configured with `ESP_EFUSE_KEY_PURPOSE_HMAC_UP`.
    - Firmware scans for existing HMAC keys on boot and **automatically reuses** any previously allocated key block rather than burning new fuses.
-   - Domain separation is enforced using unique context strings (e.g. `"project-wifi-v1"`), ensuring keys cannot be misused across different firmware features.
+   - Domain separation is enforced using unique context strings:
+     - `"project-wifi-v1"`: For credential storage encryption.
+     - `"project-auth-v1"`: For pairing token verification.
 
-3. **Physical Proximity Barrier**:
-   - Unconfigured access point mode generates a random 8-character WPA2 password using the hardware TRNG.
-   - The password is sent **only to the local physical LCD**. Anyone attempting to access the setup portal must have physical line-of-sight to the dongle.
+3. **Physical Proximity Barrier & Device Pairing**:
+   - Unconfigured access point mode generates a random 8-character WPA2 password using the hardware TRNG, shown **only on the local physical LCD**.
+   - **Device Pairing (Method B)**: When restricted access is enabled, new phones cannot send keystrokes until physically approved via the hardware button. The ESP32 signs a 64-byte payload using its hardware HMAC key.
+   - **Setup Mode Isolation**: In initial setup mode, the root page `/` redirects strictly to `/setup`—remote control keys cannot be accessed or triggered until network configuration is complete.
+
+4. **In-Transit Keystroke Encryption (WebCrypto AES-CTR)**:
+   - Keystrokes sent over WebSocket and HTTP are encrypted in the user's browser using the native WebCrypto API before transmission.
+   - Packets use the format `E:<16-byte hex nonce>:<ciphertext hex>`, mitigating eavesdropping on shared Wi-Fi networks.
+
 
 ---
 

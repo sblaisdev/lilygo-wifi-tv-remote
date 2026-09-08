@@ -15,6 +15,7 @@
 #include "soc/esp32s3/esp_hmac.h"
 #include "esp_random.h"
 #include "mbedtls/aes.h"
+#include "mbedtls/md.h"
 
 #include "../include/config.h"
 #include "webpage.h"
@@ -23,7 +24,7 @@
 USBHIDKeyboard Keyboard;
 USBHIDConsumerControl ConsumerControl;
 
-// Display object (ST7735 80x160)
+// Display object (ST7735 80x160, Active-LOW backlight on GPIO 38)
 TFT_eSPI tft = TFT_eSPI();
 
 // HTTP Web Server on port 80 & WebSocket Server on port 81 (sub-millisecond keystroke stream)
@@ -33,22 +34,37 @@ WebSocketsServer webSocket(81);
 // Persistent Storage
 Preferences prefs;
 
-// Device runtime identity
+// Device runtime identity & network state
 String roomName = DEFAULT_ROOM_NAME;
 String mdnsHostname = DEFAULT_MDNS_HOSTNAME;
 String apPassword = "";
+String opMode = "sta"; // "sta" = home Wi-Fi station, "ap" = standalone access point
 bool isApMode = false;
+bool isConfigured = false;
+bool authRequired = false; // User configurable device authorization toggle
 
-// Hardware HMAC & Encryption Key
+// Hardware HMAC & Encryption Keys
 hmac_key_id_t hmacKeySlot = HMAC_KEY_MAX;
 bool hmacAvailable = false;
-uint8_t derivedKey[32]; // AES-256 derived key
+uint8_t derivedKey[32]; // AES-256 derived key for credential & in-transit keystroke encryption
+uint8_t authKey[32];    // HMAC derived key for stateless token signing
+
+// Client WebSocket Authentication Tracking
+#define MAX_WS_CLIENTS 8
+bool wsClientAuthed[MAX_WS_CLIENTS] = {false};
+
+// Physical Button Pairing State Machine
+bool pairingPending = false;
+String pairingPendingDeviceId = "";
+unsigned long pairingStartTime = 0;
+bool pairingApproved = false;
+String pairingApprovedDeviceId = "";
 
 // Screen power management state
 bool screenOn = false;
 unsigned long screenTimer = 0;
 
-// Button state machine for Reset & Sleep
+// Button state machine for Reset & Sleep & Pairing
 int lastButtonReading = HIGH;
 unsigned long buttonPressStartTime = 0;
 bool buttonHeldPast10s = false;
@@ -66,37 +82,88 @@ bool deriveKey(const char* context, uint8_t* outKey32);
 String encryptCredential(const String& plain);
 String decryptCredential(const String& cipherHex);
 String generateRandomPassword(size_t length = 8);
+String htmlEscape(const String& input);
+String sanitizeHostname(const String& input);
+String generateSignedToken(const String& deviceId);
+bool verifyDeviceToken(const String& token);
+String decryptPayload(const String& encPacket);
 void startAccessPoint();
 void connectToSavedWifi();
 void wakeScreen();
 void sleepScreen();
 void updateScreenContent();
 void showResetPromptScreen();
+void showPairingPromptScreen();
+void showPairingSuccessScreen();
 void setupRoutes();
 void handleKeyCommand(const String& key);
 void handleTextCommand(const String& text);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
 // =========================================================================
-// Crypto & eFuse Key Management
+// Input Sanitization & String Helpers (F-05 XSS Mitigation)
+// =========================================================================
+String htmlEscape(const String& input) {
+  String out = "";
+  out.reserve(input.length() + 16);
+  for (size_t i = 0; i < input.length(); i++) {
+    char c = input[i];
+    switch (c) {
+      case '&':  out += "&amp;"; break;
+      case '<':  out += "&lt;"; break;
+      case '>':  out += "&gt;"; break;
+      case '"':  out += "&quot;"; break;
+      case '\'': out += "&#39;"; break;
+      default:   out += c; break;
+    }
+  }
+  return out;
+}
+
+String sanitizeHostname(const String& input) {
+  String out = "";
+  out.reserve(input.length());
+  for (size_t i = 0; i < input.length(); i++) {
+    char c = tolower(input[i]);
+    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+      out += c;
+    }
+  }
+  if (out.length() == 0) out = DEFAULT_MDNS_HOSTNAME;
+  if (out.length() > 32) out = out.substring(0, 32);
+  return out;
+}
+
+// =========================================================================
+// Crypto & eFuse Key Management (Hardware HMAC + AES-256 CTR)
 // =========================================================================
 void initCrypto() {
   if (getOrProvisionHmacKey(hmacKeySlot)) {
     hmacAvailable = true;
-    Serial.printf("[SECURITY] HMAC Key active in slot KEY%d\n", (int)hmacKeySlot);
-    // Derive AES-256 key with domain separation string
+    Serial.printf("[SECURITY] Hardware HMAC Key active in eFuse slot KEY%d\n", (int)hmacKeySlot);
+
+    // Derive AES-256 encryption key with domain separation
     if (deriveKey("project-wifi-v1", derivedKey)) {
-      Serial.println("[SECURITY] AES-256 encryption key derived successfully from Hardware HMAC.");
+      Serial.println("[SECURITY] AES-256 master key derived from Hardware HMAC.");
     } else {
-      Serial.println("[SECURITY] ERROR: Failed to derive key from Hardware HMAC peripheral!");
+      Serial.println("[SECURITY] ERROR: Failed to derive AES key!");
+      hmacAvailable = false;
+    }
+
+    // Derive token signing key with distinct domain separation
+    if (deriveKey("project-auth-v1", authKey)) {
+      Serial.println("[SECURITY] Device authentication key derived from Hardware HMAC.");
+    } else {
+      Serial.println("[SECURITY] ERROR: Failed to derive Auth key!");
       hmacAvailable = false;
     }
   } else {
     Serial.println("[SECURITY] WARNING: No HMAC key available and could not allocate eFuse slot.");
+    hmacAvailable = false;
   }
 }
 
-// Auto-Detect & Reuse eFuse HMAC key slot
+// Auto-Detect & Reuse eFuse HMAC key slot (GEMINI.md Rule)
 bool getOrProvisionHmacKey(hmac_key_id_t &slot) {
   // Step 1: Scan KEY0 through KEY5 for an existing ESP_EFUSE_KEY_PURPOSE_HMAC_UP
   for (int i = 0; i < 6; i++) {
@@ -104,12 +171,12 @@ bool getOrProvisionHmacKey(hmac_key_id_t &slot) {
     esp_efuse_purpose_t purpose = esp_efuse_get_key_purpose(blk);
     if (purpose == ESP_EFUSE_KEY_PURPOSE_HMAC_UP) {
       slot = (hmac_key_id_t)i;
-      Serial.printf("[SECURITY] Found existing Hardware HMAC key in eFuse block KEY%d. Reusing it.\n", i);
+      Serial.printf("[SECURITY] Reusing existing Hardware HMAC key in eFuse KEY%d.\n", i);
       return true;
     }
   }
 
-  // Step 2: No existing HMAC slot found. Allocate first empty slot scanning KEY5 downwards
+  // Step 2: No existing slot. Allocate first empty slot scanning from KEY5 downwards
   for (int i = 5; i >= 0; i--) {
     esp_efuse_block_t blk = (esp_efuse_block_t)(EFUSE_BLK_KEY0 + i);
     if (esp_efuse_key_block_unused(blk)) {
@@ -137,9 +204,9 @@ bool deriveKey(const char* context, uint8_t* outKey32) {
   return (err == ESP_OK);
 }
 
-// Encrypt string using AES-256 CTR mode. Output format: HEX(16-byte Nonce + Ciphertext)
+// Encrypt string using AES-256 CTR mode. (Fail-Closed: returns "" on failure)
 String encryptCredential(const String& plain) {
-  if (!hmacAvailable || plain.length() == 0) return plain;
+  if (!hmacAvailable || plain.length() == 0) return ""; // Fail-closed!
 
   mbedtls_aes_context aes;
   mbedtls_aes_init(&aes);
@@ -165,7 +232,6 @@ String encryptCredential(const String& plain) {
   mbedtls_aes_crypt_ctr(&aes, len, &nc_off, nonce_counter, stream_block, (const unsigned char*)plain.c_str(), output);
   mbedtls_aes_free(&aes);
 
-  // Encode Nonce (16 bytes) + Output (len bytes) as Hex
   String hexResult = "";
   hexResult.reserve((16 + len) * 2);
   for (int i = 0; i < 16; i++) {
@@ -183,11 +249,9 @@ String encryptCredential(const String& plain) {
   return hexResult;
 }
 
-// Decrypt Hex(Nonce + Ciphertext) using AES-256 CTR
+// Decrypt Hex(Nonce + Ciphertext) using AES-256 CTR (Fail-Closed: returns "" on failure)
 String decryptCredential(const String& cipherHex) {
-  if (!hmacAvailable || cipherHex.length() < 34) {
-    return cipherHex;
-  }
+  if (!hmacAvailable || cipherHex.length() < 34) return ""; // Fail-closed!
 
   size_t totalBytes = cipherHex.length() / 2;
   if (totalBytes <= 16) return "";
@@ -219,24 +283,122 @@ String decryptCredential(const String& cipherHex) {
   memset(stream_block, 0, sizeof(stream_block));
 
   mbedtls_aes_crypt_ctr(&aes, cipherLen, &nc_off, nonce_counter, stream_block, raw + 16, plaintext);
+  plaintext[cipherLen] = '\0';
+
   mbedtls_aes_free(&aes);
   free(raw);
 
-  plaintext[cipherLen] = '\0';
-  String res = String((char*)plaintext);
+  String result = (char*)plaintext;
   free(plaintext);
-  return res;
+  return result;
+}
+
+// Decrypt In-Transit Keystroke Payload (Format: E:<nonce16_hex>:<cipher_hex>)
+String decryptPayload(const String& encPacket) {
+  if (!encPacket.startsWith("E:") || !hmacAvailable) return encPacket;
+
+  int firstColon = encPacket.indexOf(':');
+  int secondColon = encPacket.indexOf(':', firstColon + 1);
+  if (firstColon < 0 || secondColon < 0) return "";
+
+  String nonceHex = encPacket.substring(firstColon + 1, secondColon);
+  String cipherHex = encPacket.substring(secondColon + 1);
+
+  if (nonceHex.length() != 32 || cipherHex.length() == 0 || (cipherHex.length() % 2 != 0)) {
+    return "";
+  }
+
+  uint8_t nonce[16];
+  for (int i = 0; i < 16; i++) {
+    char b[3] = { nonceHex[i * 2], nonceHex[i * 2 + 1], '\0' };
+    nonce[i] = (uint8_t)strtoul(b, NULL, 16);
+  }
+
+  size_t cipherLen = cipherHex.length() / 2;
+  uint8_t* cipherBytes = (uint8_t*)malloc(cipherLen);
+  uint8_t* plainBytes = (uint8_t*)malloc(cipherLen + 1);
+  if (!cipherBytes || !plainBytes) {
+    if (cipherBytes) free(cipherBytes);
+    if (plainBytes) free(plainBytes);
+    return "";
+  }
+
+  for (size_t i = 0; i < cipherLen; i++) {
+    char b[3] = { cipherHex[i * 2], cipherHex[i * 2 + 1], '\0' };
+    cipherBytes[i] = (uint8_t)strtoul(b, NULL, 16);
+  }
+
+  uint8_t nonce_counter[16];
+  memcpy(nonce_counter, nonce, 16);
+
+  size_t nc_off = 0;
+  uint8_t stream_block[16];
+  memset(stream_block, 0, sizeof(stream_block));
+
+  mbedtls_aes_context aes;
+  mbedtls_aes_init(&aes);
+  mbedtls_aes_setkey_enc(&aes, derivedKey, 256);
+  mbedtls_aes_crypt_ctr(&aes, cipherLen, &nc_off, nonce_counter, stream_block, cipherBytes, plainBytes);
+  mbedtls_aes_free(&aes);
+
+  plainBytes[cipherLen] = '\0';
+  String result = (char*)plainBytes;
+
+  free(cipherBytes);
+  free(plainBytes);
+  return result;
+}
+
+// =========================================================================
+// Authentication & Stateless Token Management (Method B)
+// =========================================================================
+String generateSignedToken(const String& deviceId) {
+  uint8_t hmacOut[32];
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
+  mbedtls_md_hmac_starts(&ctx, authKey, 32);
+  mbedtls_md_hmac_update(&ctx, (const unsigned char*)deviceId.c_str(), deviceId.length());
+  mbedtls_md_hmac_finish(&ctx, hmacOut);
+  mbedtls_md_free(&ctx);
+
+  String token = deviceId + "_";
+  for (int i = 0; i < 16; i++) { // 16 bytes = 32 hex chars
+    char buf[3];
+    sprintf(buf, "%02x", hmacOut[i]);
+    token += buf;
+  }
+  return token;
+}
+
+bool verifyDeviceToken(const String& token) {
+  if (!authRequired) return true;
+  if (token.length() < 34) return false;
+
+  int underscoreIdx = token.indexOf('_');
+  if (underscoreIdx <= 0) return false;
+
+  String deviceId = token.substring(0, underscoreIdx);
+  String expected = generateSignedToken(deviceId);
+
+  // Constant-time comparison
+  if (token.length() != expected.length()) return false;
+  uint8_t diff = 0;
+  for (size_t i = 0; i < token.length(); i++) {
+    diff |= (token[i] ^ expected[i]);
+  }
+  return (diff == 0);
 }
 
 // Cryptographically random 8-character password from Hardware TRNG
 String generateRandomPassword(size_t length) {
-  const char charset[] = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
-  const size_t charsetSize = sizeof(charset) - 1;
+  const char charset[] = "23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+  size_t charsetSize = sizeof(charset) - 1;
   String pwd = "";
   pwd.reserve(length);
   for (size_t i = 0; i < length; i++) {
-    uint32_t r = esp_random() % charsetSize;
-    pwd += charset[r];
+    uint32_t r = esp_random();
+    pwd += charset[r % charsetSize];
   }
   return pwd;
 }
@@ -246,35 +408,48 @@ String generateRandomPassword(size_t length) {
 // =========================================================================
 void startAccessPoint() {
   isApMode = true;
+  isConfigured = false;
   WiFi.mode(WIFI_AP);
   if (apPassword.length() == 0) {
     apPassword = generateRandomPassword(8);
   }
   WiFi.softAP(DEFAULT_AP_SSID, apPassword.c_str());
-  Serial.printf("[AP] Access Point started!\nSSID: %s\nPassword: %s\nIP: %s\n",
-                DEFAULT_AP_SSID, apPassword.c_str(), WiFi.softAPIP().toString().c_str());
+  Serial.printf("[AP] Setup Access Point started! SSID: %s\n", DEFAULT_AP_SSID);
 
-  // Turn on screen immediately so user can see credentials
   wakeScreen();
 }
 
 void connectToSavedWifi() {
-  prefs.begin("tvremote", true); // read-only
+  prefs.begin("tvremote", true);
+  opMode = prefs.getString("op_mode", "sta");
   String ssid = prefs.getString("ssid", "");
   String encPass = prefs.getString("enc_pass", "");
   roomName = prefs.getString("room", DEFAULT_ROOM_NAME);
   mdnsHostname = prefs.getString("mdns", DEFAULT_MDNS_HOSTNAME);
+  authRequired = prefs.getBool("auth_req", false);
   prefs.end();
 
   if (ssid.length() == 0) {
-    Serial.println("[WIFI] No stored Wi-Fi credentials found in NVS flash.");
+    Serial.println("[WIFI] No stored credentials found in NVS flash. Launching setup AP...");
     startAccessPoint();
     return;
   }
 
   String password = decryptCredential(encPass);
-  Serial.printf("[WIFI] Connecting to saved network: %s\n", ssid.c_str());
 
+  // Mode A: Standalone Private Access Point
+  if (opMode == "ap") {
+    isApMode = false;
+    isConfigured = true;
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(ssid.c_str(), password.c_str());
+    Serial.printf("[WIFI] Standalone AP mode active! SSID: %s, IP: %s\n", ssid.c_str(), WiFi.softAPIP().toString().c_str());
+    wakeScreen();
+    return;
+  }
+
+  // Mode B: Station Mode (Connect to Home Wi-Fi)
+  Serial.printf("[WIFI] Connecting to network: %s\n", ssid.c_str());
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
 
@@ -288,9 +463,11 @@ void connectToSavedWifi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     isApMode = false;
+    isConfigured = true;
     Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+    wakeScreen();
   } else {
-    Serial.println("[WIFI] Failed to connect to saved network. Launching fallback AP...");
+    Serial.println("[WIFI] Connection failed. Launching fallback AP...");
     startAccessPoint();
   }
 }
@@ -353,6 +530,13 @@ void loop() {
   server.handleClient();
   webSocket.loop();
 
+  // Check pairing request timeout
+  if (pairingPending && (millis() - pairingStartTime > PAIRING_TIMEOUT_MS)) {
+    pairingPending = false;
+    Serial.println("[SECURITY] Pairing request timed out.");
+    updateScreenContent();
+  }
+
   // ==========================================
   // Physical Button & Factory Reset State Machine
   // ==========================================
@@ -361,11 +545,9 @@ void loop() {
   if (currentState == STATE_NORMAL) {
     if (reading == LOW) {
       if (lastButtonReading == HIGH) {
-        // Button just pressed down
         buttonPressStartTime = millis();
         buttonHeldPast10s = false;
       } else {
-        // Button is being held down
         if (!buttonHeldPast10s && (millis() - buttonPressStartTime >= FACTORY_RESET_HOLD_MS)) {
           buttonHeldPast10s = true;
           currentState = STATE_CONFIRM_RESET;
@@ -375,25 +557,30 @@ void loop() {
         }
       }
     } else {
-      // Button is released
       if (lastButtonReading == LOW) {
         if (!buttonHeldPast10s) {
-          // Short press: wake or sleep screen (keep screen on in AP mode)
-          if (!screenOn) {
-            wakeScreen();
-          } else if (!isApMode) {
-            sleepScreen();
+          // Short button press
+          if (pairingPending) {
+            // Physical button clicked to approve pairing!
+            pairingApproved = true;
+            pairingApprovedDeviceId = pairingPendingDeviceId;
+            pairingPending = false;
+            showPairingSuccessScreen();
+            Serial.println("[SECURITY] Device pairing approved via physical button press!");
+          } else {
+            // Toggle screen sleep/wake
+            if (!screenOn) {
+              wakeScreen();
+            } else if (!isApMode) {
+              sleepScreen();
+            }
           }
         }
       }
     }
   } else if (currentState == STATE_CONFIRM_RESET) {
-    // Wait for user to release button from the 10s hold before accepting a confirmation click
-    if (lastButtonReading == LOW && reading == HIGH) {
-      // User released the 10s hold
-    } else if (lastButtonReading == HIGH && reading == LOW) {
-      // User clicked the button a second time to confirm reset!
-      Serial.println("[RESET] Factory reset confirmed by second button click! Clearing NVS...");
+    if (lastButtonReading == HIGH && reading == LOW) {
+      Serial.println("[RESET] Factory reset confirmed! Clearing NVS...");
       prefs.begin("tvremote", false);
       prefs.clear();
       prefs.end();
@@ -406,7 +593,6 @@ void loop() {
       ESP.restart();
     }
 
-    // Timeout confirmation mode after RESET_CONFIRM_TIMEOUT (20s)
     if (millis() - resetPromptStartTime > RESET_CONFIRM_TIMEOUT) {
       Serial.println("[RESET] Confirmation timed out. Reset canceled.");
       currentState = STATE_NORMAL;
@@ -416,8 +602,8 @@ void loop() {
 
   lastButtonReading = reading;
 
-  // Auto screen timeout in normal station mode (keep screen ON continuously in AP mode for easy provisioning)
-  if (screenOn && !isApMode && currentState == STATE_NORMAL && (millis() - screenTimer > SCREEN_TIMEOUT_MS)) {
+  // Auto screen timeout in normal station mode (keep screen ON continuously in AP mode)
+  if (screenOn && !isApMode && currentState == STATE_NORMAL && !pairingPending && (millis() - screenTimer > SCREEN_TIMEOUT_MS)) {
     sleepScreen();
   }
 
@@ -432,14 +618,12 @@ void wakeScreen() {
   screenTimer = millis();
   updateScreenContent();
   digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
-  Serial.println("[LCD] Screen turned ON");
 }
 
 void sleepScreen() {
   screenOn = false;
   digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_OFF);
   tft.fillScreen(TFT_BLACK);
-  Serial.println("[LCD] Screen turned OFF");
 }
 
 void updateScreenContent() {
@@ -450,9 +634,8 @@ void updateScreenContent() {
   tft.setTextColor(TFT_WHITE, TFT_BLUE);
   tft.drawString(roomName + " TV", 8, 2, 2);
 
-  if (isApMode) {
+  if (isApMode && !isConfigured) {
     // Fallback AP Mode View (Physical Proximity Barrier)
-    // WiFi SSID
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
     tft.drawString("WiFi: " + String(DEFAULT_AP_SSID), 6, 18, 2);
 
@@ -460,9 +643,16 @@ void updateScreenContent() {
     tft.setTextColor(TFT_YELLOW, TFT_BLACK);
     tft.drawString(apPassword, 6, 36, 4);
 
-    // IP URL info at bottom
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.drawString("http://192.168.4.1", 6, 64, 2);
+  } else if (opMode == "ap") {
+    // Standalone AP Mode
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.drawString("AP: Active", 8, 18, 2);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawString("http://192.168.4.1", 8, 36, 2);
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.drawString("http://" + mdnsHostname + ".local", 8, 54, 2);
   } else {
     // Normal Wi-Fi Connected View
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
@@ -472,10 +662,7 @@ void updateScreenContent() {
     tft.drawString(WiFi.localIP().toString(), 8, 36, 2);
 
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
-    tft.drawString("http://" + mdnsHostname + ".local", 8, 52, 1);
-
-    tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString("Press btn to sleep", 8, 68, 1);
+    tft.drawString("http://" + mdnsHostname + ".local", 8, 54, 2);
   }
 }
 
@@ -484,33 +671,63 @@ void showResetPromptScreen() {
   digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
   tft.fillScreen(TFT_BLACK);
 
-  // Red Warning Header
   tft.fillRect(0, 0, 160, 18, TFT_RED);
   tft.setTextColor(TFT_WHITE, TFT_RED);
   tft.drawString("! FACTORY RESET !", 10, 2, 2);
 
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawString("Press button to", 8, 24, 1);
-  tft.drawString("reset to factory default.", 8, 36, 1);
-
-  tft.setTextColor(TFT_GREEN, TFT_BLACK);
-  tft.drawString("Unplug to cancel.", 8, 52, 1);
-
-  tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-  tft.drawString("Auto-cancel in 20s", 8, 68, 1);
+  tft.drawString("Press button to reset", 6, 24, 2);
+  tft.drawString("to factory default.", 6, 42, 2);
+  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  tft.drawString("Unplug to cancel.", 14, 62, 2);
 }
 
+void showPairingPromptScreen() {
+  screenOn = true;
+  digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
+  tft.fillScreen(TFT_BLACK);
+
+  tft.fillRect(0, 0, 160, 18, TFT_ORANGE);
+  tft.setTextColor(TFT_BLACK, TFT_ORANGE);
+  tft.drawString("PAIR NEW PHONE?", 14, 2, 2);
+
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawString("Click button on stick", 6, 26, 2);
+  tft.drawString("to approve device.", 16, 44, 2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("Expires in 30s", 34, 64, 1);
+}
+
+void showPairingSuccessScreen() {
+  screenOn = true;
+  digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
+  tft.fillScreen(TFT_BLACK);
+
+  tft.fillRect(0, 0, 160, 18, TFT_GREEN);
+  tft.setTextColor(TFT_BLACK, TFT_GREEN);
+  tft.drawString("DEVICE APPROVED!", 12, 2, 2);
+
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("Phone paired \u2713", 26, 32, 2);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString("Remote Active", 30, 52, 2);
+
+  screenTimer = millis();
+}
+
+// =========================================================================
+// Command Execution & Logging Scrubbing (F-06)
+// =========================================================================
 void handleTextCommand(const String& text) {
-  Serial.printf("[HID] Typing text: '%s' (len=%d)\n", text.c_str(), text.length());
-  for (unsigned int i = 0; i < text.length(); i++) {
-    size_t res = Keyboard.write(text[i]);
-    Serial.printf("[HID] char '%c' (0x%02X) -> res: %u\n", text[i], (uint8_t)text[i], res);
-    delay(10);
-  }
+  if (text.length() == 0) return;
+  wakeScreen();
+  Keyboard.print(text);
+  // F-06: Log character length only; never print raw keystroke text to serial
+  Serial.printf("[HID] Dispatched text string (%d characters)\n", (int)text.length());
 }
 
 void handleKeyCommand(const String& key) {
-  Serial.printf("[HID] Key command: '%s'\n", key.c_str());
+  wakeScreen();
   size_t p = 0;
   if (key == "UP") {
     p = Keyboard.press(KEY_UP_ARROW);
@@ -567,43 +784,83 @@ void handleKeyCommand(const String& key) {
     delay(40);
     ConsumerControl.release();
   }
-  Serial.printf("[HID] Key press sent, res: %u\n", p);
+  Serial.printf("[HID] Dispatched key: %s (status: %u)\n", key.c_str(), (unsigned)p);
 }
 
-// WebSocket Event Handler (Live typing & real-time events)
+// WebSocket Event Handler (In-transit Decryption & Authentication)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  if (num >= MAX_WS_CLIENTS) return;
+
   switch (type) {
     case WStype_DISCONNECTED:
+      wsClientAuthed[num] = false;
       break;
+
     case WStype_CONNECTED:
+      // If auth is not required, client is automatically authorized
+      wsClientAuthed[num] = !authRequired;
       break;
+
     case WStype_TEXT: {
-      if (length >= 2 && payload[0] == 'T' && payload[1] == ':') {
-        String text;
-        text.reserve(length - 2);
-        for (size_t i = 2; i < length; i++) {
-          text += (char)payload[i];
+      String msg = "";
+      msg.reserve(length);
+      for (size_t i = 0; i < length; i++) msg += (char)payload[i];
+
+      // Handle Authentication Handshake
+      if (msg.startsWith("AUTH:")) {
+        String token = msg.substring(5);
+        if (verifyDeviceToken(token)) {
+          wsClientAuthed[num] = true;
+          webSocket.sendTXT(num, "AUTH_OK");
+          Serial.printf("[SECURITY] WS Client #%u authenticated successfully.\n", num);
+        } else {
+          wsClientAuthed[num] = false;
+          webSocket.sendTXT(num, "AUTH_REQUIRED");
+          Serial.printf("[SECURITY] WS Client #%u presented invalid auth token!\n", num);
         }
-        handleTextCommand(text);
-      } else if (length >= 2 && payload[0] == 'K' && payload[1] == ':') {
-        char kbuf[32];
-        size_t klen = (length - 2 < sizeof(kbuf) - 1) ? length - 2 : sizeof(kbuf) - 1;
-        memcpy(kbuf, payload + 2, klen);
-        kbuf[klen] = '\0';
-        handleKeyCommand(String(kbuf));
+        return;
+      }
+
+      // If auth is required and client is not authed, reject message
+      if (authRequired && !wsClientAuthed[num]) {
+        webSocket.sendTXT(num, "AUTH_REQUIRED");
+        return;
+      }
+
+      // Handle In-Transit Decryption (Item 1 Option A)
+      if (msg.startsWith("E:")) {
+        msg = decryptPayload(msg);
+      }
+
+      if (msg.startsWith("T:")) {
+        handleTextCommand(msg.substring(2));
+      } else if (msg.startsWith("K:")) {
+        handleKeyCommand(msg.substring(2));
       }
       break;
     }
+
     default:
       break;
   }
 }
 
+// =========================================================================
+// HTTP Routes & Security Endpoints
+// =========================================================================
 void setupRoutes() {
-  // Main Remote Interface
+  // Main Remote Interface (Isolated in unconfigured AP setup mode)
   server.on("/", HTTP_GET, []() {
+    if (isApMode && !isConfigured) {
+      // AP Setup Mode Isolation: Force setup page only
+      server.sendHeader("Location", "/setup");
+      server.send(302, "text/plain", "Redirecting to setup portal...");
+      return;
+    }
+
     String html = FPSTR(PAGE_INDEX_TEMPLATE);
-    html.replace("%ROOM_NAME%", roomName);
+    html.replace("%ROOM_NAME%", htmlEscape(roomName));
+    html.replace("%AUTH_REQUIRED%", authRequired ? "true" : "false");
     server.send(200, "text/html", html);
   });
 
@@ -612,11 +869,11 @@ void setupRoutes() {
     server.send(200, "image/svg+xml", PAGE_ICON_SVG);
   });
 
-  // Serve Web App Manifest for Android / iOS Home Screen install
+  // Serve Web App Manifest
   server.on("/manifest.json", HTTP_GET, []() {
     String manifest = "{\n"
-      "  \"name\": \"" + roomName + " TV Remote\",\n"
-      "  \"short_name\": \"" + roomName + " TV\",\n"
+      "  \"name\": \"" + htmlEscape(roomName) + " TV Remote\",\n"
+      "  \"short_name\": \"" + htmlEscape(roomName) + " TV\",\n"
       "  \"start_url\": \"/\",\n"
       "  \"display\": \"standalone\",\n"
       "  \"background_color\": \"#10131a\",\n"
@@ -624,16 +881,15 @@ void setupRoutes() {
       "  \"icons\": [\n"
       "    {\n"
       "      \"src\": \"/icon.svg\",\n"
-      "      \"sizes\": \"192x192 512x512\",\n"
-      "      \"type\": \"image/svg+xml\",\n"
-      "      \"purpose\": \"any maskable\"\n"
+      "      \"sizes\": \"512x512\",\n"
+      "      \"type\": \"image/svg+xml\"\n"
       "    }\n"
       "  ]\n"
       "}\n";
     server.send(200, "application/manifest+json", manifest);
   });
 
-  // Setup Portal Page: scans available networks and renders setup UI
+  // Setup Portal Page
   server.on("/setup", HTTP_GET, []() {
     int n = WiFi.scanNetworks();
     String wifiOptions = "";
@@ -643,54 +899,152 @@ void setupRoutes() {
       for (int i = 0; i < n; ++i) {
         String ssid = WiFi.SSID(i);
         int32_t rssi = WiFi.RSSI(i);
-        wifiOptions += "<option value=\"" + ssid + "\">" + ssid + " (" + String(rssi) + " dBm)</option>\n";
+        String escapedSsid = htmlEscape(ssid);
+        wifiOptions += "<option value=\"" + escapedSsid + "\">" + escapedSsid + " (" + String(rssi) + " dBm)</option>\n";
       }
     }
     WiFi.scanDelete();
 
     String html = FPSTR(PAGE_SETUP_TEMPLATE);
     html.replace("%WIFI_OPTIONS%", wifiOptions);
-    html.replace("%ROOM_NAME%", roomName);
-    html.replace("%MDNS_HOSTNAME%", mdnsHostname);
+    html.replace("%ROOM_NAME%", htmlEscape(roomName));
+    html.replace("%MDNS_HOSTNAME%", htmlEscape(mdnsHostname));
+    html.replace("%AP_SSID%", htmlEscape(roomName + "-TV-Remote"));
+    html.replace("%MODE_STA_SELECTED%", opMode == "ap" ? "" : "selected");
+    html.replace("%MODE_AP_SELECTED%", opMode == "ap" ? "selected" : "");
+    html.replace("%AUTH_CHECKED%", authRequired ? "checked" : "");
+
+    // Dynamic Crypto Status Badge (F-11 Remediation)
+    if (hmacAvailable) {
+      html.replace("%CRYPTO_STATUS_BADGE%", "<span class=\"badge\">&#x1F512; Hardware eFuse HMAC Active</span>");
+    } else {
+      html.replace("%CRYPTO_STATUS_BADGE%", "<span class=\"badge\" style=\"background:#ef444430;color:#f87171;border-color:#ef444460;\">&#x26A0; Hardware Encryption Offline</span>");
+    }
+
+    // Back Link (hide in unconfigured AP setup mode)
+    if (isConfigured) {
+      html.replace("%BACK_LINK%", "<a href=\"/\" class=\"back-link\">&#x2190; Back to Remote Control</a>");
+    } else {
+      html.replace("%BACK_LINK%", "");
+    }
+
     server.send(200, "text/html", html);
   });
 
-  // Save Wi-Fi Credentials Endpoint
+  // Save Wi-Fi Credentials Endpoint (Fail-Closed F-04 / Stored XSS F-05 / Bug F-12)
   server.on("/savewifi", HTTP_POST, []() {
-    String ssid = (server.hasArg("ssid_custom") && server.arg("ssid_custom").length() > 0)
-                  ? server.arg("ssid_custom") 
-                  : server.arg("ssid");
+    String selectedMode = server.hasArg("op_mode") ? server.arg("op_mode") : "sta";
+    String ssid = "";
+
+    if (selectedMode == "ap") {
+      ssid = server.hasArg("ap_ssid") && server.arg("ap_ssid").length() > 0 ? server.arg("ap_ssid") : (roomName + "-TV-Remote");
+    } else {
+      ssid = (server.hasArg("ssid_custom") && server.arg("ssid_custom").length() > 0)
+                    ? server.arg("ssid_custom") 
+                    : server.arg("ssid");
+    }
+
     String password = server.arg("password");
     String newRoom = server.hasArg("room") && server.arg("room").length() > 0 ? server.arg("room") : DEFAULT_ROOM_NAME;
-    String newMdns = server.hasArg("hostname") && server.arg("hostname").length() > 0 ? server.arg("hostname") : DEFAULT_MDNS_HOSTNAME;
+    String newMdns = server.hasArg("hostname") && server.arg("hostname").length() > 0 ? sanitizeHostname(server.arg("hostname")) : DEFAULT_MDNS_HOSTNAME;
+    bool newAuthRequired = server.hasArg("auth_required") && (server.arg("auth_required") == "1");
 
-    if (ssid.length() > 0) {
-      // Encrypt Wi-Fi password before committing to NVS
-      String encPass = encryptCredential(password);
-
-      prefs.begin("tvremote", false);
-      prefs.putString("ssid", ssid);
-      prefs.putString("enc_pass", encPass);
-      prefs.putString("room", newRoom);
-      prefs.putString("mdns", newMdns);
-      prefs.end();
-
-      String html = FPSTR(PAGE_SAVED);
-      html.replace("%MDNS_HOSTNAME%", newMdns);
-      server.send(200, "text/html", html);
-
-      Serial.println("[SETUP] Wi-Fi credentials encrypted & saved! Restarting in 2 seconds...");
-      delay(2000);
-      ESP.restart();
-    } else {
+    if (ssid.length() == 0) {
       server.send(400, "text/plain", "SSID cannot be empty.");
+      return;
+    }
+
+    // Fail-Closed Cryptography Enforcement (F-04)
+    String encPass = encryptCredential(password);
+    if (password.length() > 0 && encPass.length() == 0) {
+      Serial.println("[SECURITY ERROR] Hardware encryption failed. Aborting commit to flash!");
+      tft.fillScreen(TFT_RED);
+      tft.setTextColor(TFT_WHITE, TFT_RED);
+      tft.drawString("! CRYPT ERROR !", 10, 20, 2);
+      tft.drawString("HMAC Failure", 10, 45, 2);
+      server.send(500, "text/plain", "Security Error: Hardware HMAC encryption failed. Credentials not saved.");
+      return;
+    }
+
+    prefs.begin("tvremote", false);
+    prefs.putString("op_mode", selectedMode);
+    prefs.putString("ssid", ssid);
+    prefs.putString("enc_pass", encPass);
+    prefs.putString("room", newRoom);
+    prefs.putString("mdns", newMdns);
+    prefs.putBool("auth_req", newAuthRequired);
+    prefs.end();
+
+    String html = FPSTR(PAGE_SAVED);
+    html.replace("%MDNS_HOSTNAME%", htmlEscape(newMdns));
+    server.send(200, "text/html", html);
+
+    Serial.println("[SETUP] Settings encrypted & saved! Rebooting in 2 seconds...");
+    delay(2000);
+    ESP.restart();
+  });
+
+  // Pairing Request Endpoint (Method B)
+  server.on("/api/pair_request", HTTP_POST, []() {
+    String devId = server.arg("device");
+    if (devId.length() == 0) {
+      server.send(400, "application/json", "{\"error\":\"Missing device ID\"}");
+      return;
+    }
+
+    if (!authRequired) {
+      // Open mode: immediately issue signed token
+      String token = generateSignedToken(devId);
+      server.send(200, "application/json", "{\"status\":\"approved\",\"token\":\"" + token + "\"}");
+      return;
+    }
+
+    // Restricted mode: initiate physical pairing confirmation
+    pairingPending = true;
+    pairingPendingDeviceId = devId;
+    pairingStartTime = millis();
+    pairingApproved = false;
+    showPairingPromptScreen();
+
+    Serial.printf("[SECURITY] Pairing requested for device: %s. Awaiting physical button press...\n", devId.c_str());
+    server.send(200, "application/json", "{\"status\":\"waiting\"}");
+  });
+
+  // Pairing Status Polling Endpoint
+  server.on("/api/pair_status", HTTP_GET, []() {
+    String devId = server.arg("device");
+    if (devId.length() == 0) {
+      server.send(400, "application/json", "{\"error\":\"Missing device ID\"}");
+      return;
+    }
+
+    if (!authRequired) {
+      String token = generateSignedToken(devId);
+      server.send(200, "application/json", "{\"status\":\"approved\",\"token\":\"" + token + "\"}");
+      return;
+    }
+
+    if (pairingApproved && pairingApprovedDeviceId == devId) {
+      pairingApproved = false;
+      String token = generateSignedToken(devId);
+      server.send(200, "application/json", "{\"status\":\"approved\",\"token\":\"" + token + "\"}");
+    } else if (millis() - pairingStartTime > PAIRING_TIMEOUT_MS) {
+      server.send(200, "application/json", "{\"status\":\"expired\"}");
+    } else {
+      server.send(200, "application/json", "{\"status\":\"waiting\"}");
     }
   });
 
-  // Fallback HTTP endpoints for text and keys
+  // HTTP Fallback Commands (Authenticated & Encrypted)
   server.on("/sendtext", HTTP_POST, []() {
+    if (authRequired && !verifyDeviceToken(server.arg("token"))) {
+      server.send(401, "text/plain", "Unauthorized: Valid pairing token required.");
+      return;
+    }
     if (server.hasArg("text")) {
-      handleTextCommand(server.arg("text"));
+      String text = server.arg("text");
+      if (text.startsWith("E:")) text = decryptPayload(text);
+      handleTextCommand(text);
       server.send(200, "text/plain", "OK");
     } else {
       server.send(400, "text/plain", "Missing text");
@@ -698,8 +1052,15 @@ void setupRoutes() {
   });
 
   server.on("/sendkey", HTTP_POST, []() {
+    if (authRequired && !verifyDeviceToken(server.arg("token"))) {
+      server.send(401, "text/plain", "Unauthorized: Valid pairing token required.");
+      return;
+    }
     if (server.hasArg("key")) {
-      handleKeyCommand(server.arg("key"));
+      String key = server.arg("key");
+      if (key.startsWith("E:")) key = decryptPayload(key);
+      if (key.startsWith("K:")) key = key.substring(2);
+      handleKeyCommand(key);
       server.send(200, "text/plain", "OK");
     } else {
       server.send(400, "text/plain", "Missing key");
