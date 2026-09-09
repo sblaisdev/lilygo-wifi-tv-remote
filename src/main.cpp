@@ -1353,13 +1353,7 @@ void setupRoutes() {
       return;
     }
 
-    if (!authRequired) {
-      String token = generateSignedToken(devId);
-      server.send(200, "application/json", "{\"status\":\"approved\",\"token\":\"" + token + "\"}");
-      return;
-    }
-
-    // Restricted mode: initiate physical pairing confirmation
+    // Initiate physical pairing confirmation on the dongle
     pairingPending = true;
     pairingPendingDeviceId = devId;
     pairingStartTime = millis();
@@ -1375,12 +1369,6 @@ void setupRoutes() {
     String devId = server.arg("device");
     if (devId.length() == 0) {
       server.send(400, "application/json", "{\"error\":\"Missing device ID\"}");
-      return;
-    }
-
-    if (!authRequired) {
-      String token = generateSignedToken(devId);
-      server.send(200, "application/json", "{\"status\":\"approved\",\"token\":\"" + token + "\"}");
       return;
     }
 
