@@ -237,33 +237,76 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
     }
     .dpad-center {
       background: var(--primary);
-      font-weight: 700;
-      font-size: 1.1rem;
     }
-    .keys-grid, .media-grid {
+    .tabs-container {
+
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 2px;
+      scrollbar-width: none;
+    }
+    .tabs-container::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    }
+    .dynamic-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
     }
-    .media-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
-    .keys-grid button, .media-grid button {
+    .dyn-btn {
       background: var(--dpad-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
       color: #fff;
       font-size: 0.85rem;
       font-weight: 600;
-      padding: 12px 6px;
+      padding: 10px 4px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 4px;
       cursor: pointer;
+      min-height: 54px;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+      transition: transform 0.08s ease, background 0.1s ease;
     }
-    .keys-grid button:active, .media-grid button:active {
-      background: var(--btn-active);
+    .dyn-btn:active {
+      transform: translateY(2px);
+      box-shadow: none;
+      filter: brightness(1.2);
+    }
+    .btn-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+    .btn-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      text-align: center;
+      word-break: break-word;
+    }
+    .spacer {
+      visibility: hidden;
+      min-height: 54px;
     }
     .feedback-toast {
       font-size: 0.8rem;
@@ -298,6 +341,14 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       </div>
     </header>
 
+    <!-- Multi-Page Tabs -->
+    <div class="tabs-container" id="pageTabs"></div>
+
+    <!-- Dynamic Button Grid -->
+    <div class="card" style="padding: 12px;">
+      <div class="dynamic-grid" id="buttonGrid"></div>
+    </div>
+
     <!-- Live Typing Console -->
     <div class="card typing-card">
       <div class="typing-header">
@@ -321,47 +372,9 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- D-Pad Navigation -->
-    <div class="card">
-      <div class="dpad-container">
-        <div></div>
-        <button class="dpad-btn" onclick="sendKey('UP')">&#x25B2;</button>
-        <div></div>
-
-        <button class="dpad-btn" onclick="sendKey('LEFT')">&#x25C0;</button>
-        <button class="dpad-btn dpad-center" onclick="sendKey('ENTER')">OK</button>
-        <button class="dpad-btn" onclick="sendKey('RIGHT')">&#x25B6;</button>
-
-        <div></div>
-        <button class="dpad-btn" onclick="sendKey('DOWN')">&#x25BC;</button>
-        <div></div>
-      </div>
-    </div>
-
-    <!-- System / TV Keys -->
-    <div class="card">
-      <div class="keys-grid">
-        <button onclick="sendKey('BACK')">&#x232B; Back / Esc</button>
-        <button onclick="sendKey('HOME')">&#x1F3E0; Home</button>
-        <button onclick="sendKey('BACKSPACE')">&#x21FD; Backspace</button>
-        <button onclick="sendKey('SPACE')">Space</button>
-        <button onclick="sendKey('TAB')">&#x21E5; Tab</button>
-        <button onclick="sendKey('ENTER')">&#x23CE; Enter</button>
-      </div>
-    </div>
-
-    <!-- Media Controls -->
-    <div class="card">
-      <div class="media-grid">
-        <button onclick="sendKey('VOL_DOWN')">&#x1F508; Vol -</button>
-        <button onclick="sendKey('VOL_UP')">&#x1F50A; Vol +</button>
-        <button onclick="sendKey('MUTE')">&#x1F507; Mute</button>
-        <button onclick="sendKey('PLAY_PAUSE')">&#x25B6;&#x23F8; Play</button>
-      </div>
-    </div>
-
     <div class="feedback-toast" id="toast">Ready</div>
   </div>
+
 
   <!-- Physical Pairing Modal -->
   <div id="pairOverlay" class="modal-overlay">
@@ -607,6 +620,109 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       }
     });
 
+    const activeProfile = %ACTIVE_PROFILE_JSON%;
+    let currentPageIndex = 0;
+
+    function renderProfile() {
+      if (!activeProfile || !activeProfile.pages || activeProfile.pages.length === 0) return;
+
+      const brandSpan = document.querySelector('.brand span');
+      if (brandSpan && activeProfile.name) brandSpan.innerText = activeProfile.name;
+
+      const tabs = document.getElementById('pageTabs');
+      tabs.innerHTML = '';
+      if (activeProfile.pages.length > 1) {
+        tabs.style.display = 'flex';
+        activeProfile.pages.forEach((p, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'tab-btn' + (idx === currentPageIndex ? ' active' : '');
+          btn.innerText = p.name || `Page ${idx + 1}`;
+          btn.onclick = () => {
+            currentPageIndex = idx;
+            renderProfile();
+          };
+          tabs.appendChild(btn);
+        });
+      } else {
+        tabs.style.display = 'none';
+      }
+
+      const page = activeProfile.pages[currentPageIndex] || activeProfile.pages[0];
+      const grid = document.getElementById('buttonGrid');
+      const cols = page.columns || activeProfile.columns || 3;
+      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      grid.innerHTML = '';
+
+      (page.buttons || []).forEach(b => {
+        if (b.action === 'none') {
+          const sp = document.createElement('div');
+          sp.className = 'spacer';
+          if (b.span) sp.style.gridColumn = `span ${b.span}`;
+          grid.appendChild(sp);
+          return;
+        }
+
+        const el = document.createElement('button');
+        el.className = 'dyn-btn';
+        if (b.span) el.style.gridColumn = `span ${b.span}`;
+        if (b.color) el.style.background = b.color;
+
+        let content = '';
+        if (b.icon) content += `<span class="btn-icon">${renderIcon(b.icon)}</span>`;
+        if (b.label) content += `<span class="btn-label">${b.label}</span>`;
+        el.innerHTML = content || '&bull;';
+
+        el.onclick = () => {
+          vibrate();
+          if (b.action === 'hid') {
+            sendKey(b.code);
+          } else if (b.action === 'macro') {
+            sendMacro(b.macro);
+          }
+        };
+        grid.appendChild(el);
+      });
+    }
+
+    function renderIcon(icon) {
+      const map = {
+        'power': '&#x23FB;',
+        'volume-x': '&#x1F507;',
+        'volume-1': '&#x1F508;',
+        'volume-2': '&#x1F50A;',
+        'play': '&#x25B6;',
+        'pause': '&#x23F8;',
+        'skip-back': '&#x23EE;',
+        'skip-forward': '&#x23ED;',
+        'arrow-up': '&#x25B2;',
+        'arrow-down': '&#x25BC;',
+        'arrow-left': '&#x25C0;',
+        'arrow-right': '&#x25B6;',
+        'check': '&#x2714;',
+        'corner-down-left': '&#x23CE;',
+        'home': '&#x1F3E0;',
+        'info': '&#x2139;',
+        'lock': '&#x1F512;',
+        'monitor': '&#x1F5A5;',
+        'terminal': '&#x25B6;_',
+        'activity': '&#x1F4CA;',
+        'film': '&#x1F3AC;',
+        'video': '&#x1F3A6;',
+        'search': '&#x1F50D;',
+        'maximize': '&#x26F6;',
+        'x': '&#x2715;',
+        'layers': '&#x2398;',
+        'x-square': '&#x2327;'
+      };
+      return map[icon] || icon;
+    }
+
+    function sendMacro(script) {
+      vibrate();
+      sendPayload('M:' + script);
+      setToast('Running Macro...');
+    }
+
     function sendKey(keyName) {
       vibrate();
       sendPayload('K:' + keyName);
@@ -618,7 +734,11 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       previousVal = '';
       clearBtn.style.display = 'none';
     }
+
+    // Initialize layout
+    renderProfile();
   </script>
+
 </body>
 </html>
 )rawliteral";
@@ -841,6 +961,33 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         <button type="submit" class="btn-submit">Save &amp; Connect</button>
       </form>
 
+      <!-- Device Profiles & Macro Management -->
+      <div style="border-top: 1px solid var(--card-border); padding-top: 16px; margin-top: 16px;">
+        <h3 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span>&#x1F4F1;</span> Device Profile &amp; Layout
+        </h3>
+        <div class="form-group">
+          <label for="active_profile">Active Remote Profile</label>
+          <select id="active_profile" name="active_profile">
+            %PROFILE_OPTIONS%
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+          <button type="button" class="btn-submit" onclick="switchActiveProfile()" style="background: var(--primary); padding: 10px; margin-top: 0;">Switch Active</button>
+          <button type="button" class="btn-submit" onclick="deleteActiveProfile()" style="background: #ef4444; padding: 10px; width: auto; margin-top: 0;">Delete</button>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="profileUpload">Upload Custom Profile (.json)</label>
+          <input type="file" id="profileUpload" accept=".json" style="font-size: 0.85rem; margin-bottom: 8px;">
+          <button type="button" class="btn-submit" onclick="uploadProfileFile()" style="background: var(--accent); padding: 10px; margin-top: 0;">Upload Profile</button>
+        </div>
+
+        <div style="text-align: center; margin-top: 14px;">
+          <a href="/designer" style="color: #38bdf8; font-size: 0.9rem; font-weight: 600; text-decoration: none;">&#x2728; Open Layout &amp; Macro Designer</a>
+        </div>
+      </div>
+
       <p class="note">
         Your Wi-Fi password will be encrypted using the ESP32-S3 Hardware HMAC key before being committed to flash memory.
       </p>
@@ -875,7 +1022,84 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
       }
     }
     toggleMode();
+
+    async function switchActiveProfile() {
+      const sel = document.getElementById('active_profile');
+      const id = sel.value;
+      if (!id) return;
+      const token = localStorage.getItem('tv_remote_token') || '';
+      try {
+        const params = new URLSearchParams({ id: id, token: token });
+        const res = await fetch('/api/profiles/set_active', { method: 'POST', body: params });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          alert('Active profile switched to: ' + id);
+          window.location.href = '/';
+        } else {
+          alert('Failed to switch profile: ' + (data.error || 'Pairing token required. Open remote and pair first.'));
+        }
+      } catch (e) {
+        alert('Network error switching profile: ' + e);
+      }
+    }
+
+    async function deleteActiveProfile() {
+      const sel = document.getElementById('active_profile');
+      const id = sel.value;
+      if (!id || id === 'default-tv') {
+        alert('Cannot delete the built-in default TV profile.');
+        return;
+      }
+      if (!confirm('Are you sure you want to delete profile "' + id + '"?')) return;
+      const token = localStorage.getItem('tv_remote_token') || '';
+      try {
+        const params = new URLSearchParams({ id: id, token: token });
+        const res = await fetch('/api/profiles/delete', { method: 'POST', body: params });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          alert('Profile deleted.');
+          window.location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Unauthorized'));
+        }
+      } catch (e) {
+        alert('Network error: ' + e);
+      }
+    }
+
+    async function uploadProfileFile() {
+      const fileInput = document.getElementById('profileUpload');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select a .json profile file first.');
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const jsonText = e.target.result;
+          JSON.parse(jsonText); // Validate JSON
+          const token = localStorage.getItem('tv_remote_token') || '';
+          const res = await fetch('/api/profiles/upload?set_active=1&token=' + encodeURIComponent(token), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: jsonText
+          });
+          const data = await res.json();
+          if (data.status === 'ok') {
+            alert('Profile uploaded successfully and set as active!');
+            window.location.href = '/';
+          } else {
+            alert('Upload error: ' + (data.error || 'Pairing token required. Open remote and pair first.'));
+          }
+        } catch (err) {
+          alert('Invalid JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
   </script>
+
 </body>
 </html>
 )rawliteral";

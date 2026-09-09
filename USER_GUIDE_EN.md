@@ -124,7 +124,37 @@ Searching for movies or entering passwords using an on-screen TV keyboard is ted
 
 ---
 
-## 5. Installing as a Web App (PWA)
+## 5. Device Profiles & Macro Studio (Companion App)
+
+The firmware includes a universal companion app inspired by **Touch Portal**, **USB Rubber Ducky**, and **Logitech Universal Remotes**.
+
+### Accessing the Studio
+You can access the studio in two convenient ways:
+- **Directly from the Dongle**: Navigate to `http://tv-remote.local/designer` (or click *"Open Layout & Macro Designer"* on the Settings page).
+- **Offline / Local**: Open `companion/index.html` in any web browser on your PC, Mac, or tablet.
+
+### Core Capabilities
+1. **Multi-Page Device Profiles**:
+   - Create custom layouts for different target devices: Smart TVs, Windows PCs, Apple Macs, Kodi, or Android TV.
+   - Organize controls into sub-pages (e.g. *Navigation*, *Numpad*, *Media Playback*, *Shortcuts*).
+   - Configure grid columns (2 to 6 columns) and custom button spans (1x1, 2x1 wide, full width).
+2. **Hybrid DuckyScript Macro Engine**:
+   - Each button can trigger a single HID key or a multi-step **Rubber Ducky macro**.
+   - Use the **Visual Builder** to add action steps (*Type Text*, *Key Combo*, *Delay*, *Enter*) or write raw DuckyScript directly in the text editor.
+   - Supports: `STRING <text>`, `DELAY <ms>`, `GUI <key>`, `CTRL <key>`, `ALT <key>`, `SHIFT <key>`, `REPEAT <n>`, and Consumer Keys (`VOL_UP`, `MUTE`, `PLAY_PAUSE`).
+3. **Dual Storage (Internal Flash & MicroSD)**:
+   - Profiles are saved in the ESP32-S3's internal **LittleFS** flash memory.
+   - If a MicroSD card is inserted into the T-Dongle-S3's TF slot, the firmware automatically detects it.
+4. **Deploying to the Dongle**:
+   - Click **"Deploy to LilyGO"** to upload the profile directly over Wi-Fi.
+   - **Mandatory Pairing Security**: Uploading, editing, or deleting profiles requires physical authorization. Tap *"Pair Dongle"* in the studio, then press the physical button on the TV stick to approve access.
+5. **Quick-Switching Profiles**:
+   - In the **Settings page** (`http://tv-remote.local/setup`), select any installed profile from the *"Active Remote Profile"* dropdown and tap *"Switch Active"*. The remote interface instantly updates its layout and tabs.
+
+---
+
+## 6. Installing as a Web App (PWA)
+
 
 You can install the remote control as a standalone app on your smartphone without installing anything from an app store.
 
@@ -143,9 +173,10 @@ You can install the remote control as a standalone app on your smartphone withou
 
 ---
 
-## 6. Physical Button Functions & Factory Reset
+## 7. Physical Button Functions & Factory Reset
 
 The physical button located on the top of the T-Dongle-S3 has two functions:
+
 
 ```mermaid
 stateDiagram-v2
@@ -187,7 +218,8 @@ To prevent accidental resets, a two-step confirmation is required:
 
 ---
 
-## 7. Security & Cryptographic Architecture
+## 8. Security & Cryptographic Architecture
+
 
 Your device follows strict hardware-grade embedded security principles:
 
@@ -216,7 +248,8 @@ Your device follows strict hardware-grade embedded security principles:
 
 ---
 
-## 8. Troubleshooting & Frequently Asked Questions
+## 9. Troubleshooting & Frequently Asked Questions
+
 
 ### The screen is completely black. What should I do?
 1. Verify the dongle is fully inserted into a powered USB port.

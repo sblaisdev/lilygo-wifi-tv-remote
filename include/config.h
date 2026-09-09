@@ -22,3 +22,15 @@
 #define FACTORY_RESET_HOLD_MS   10000   // 10 seconds continuous hold for reset
 #define RESET_CONFIRM_TIMEOUT   20000   // 20 seconds timeout to cancel reset prompt
 #define PAIRING_TIMEOUT_MS      30000   // 30 seconds to confirm new phone pairing
+
+// ==========================================
+// TF / MicroSD Card Hardware Pins
+// ==========================================
+#define PIN_SD_CS               13
+#define PIN_SD_MOSI             11
+#define PIN_SD_CLK              12
+#define PIN_SD_MISO             14
+
+#define PROFILES_DIR            "/profiles"
+#define ACTIVE_PROFILE_FILE     "/profiles/active.txt"
+#define DEFAULT_PROFILE_ID      "default-tv"

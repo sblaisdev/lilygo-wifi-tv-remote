@@ -124,7 +124,37 @@ Rechercher une vidéo ou saisir un mot de passe avec une télécommande classiqu
 
 ---
 
-## 5. Installation sous forme d'application web (PWA)
+## 5. Profils d'appareils et Studio de Macros (Companion App)
+
+Le microprogramme intègre une application compagnon universelle inspirée de **Touch Portal**, **USB Rubber Ducky** et des **télécommandes universelles Logitech Harmony**.
+
+### Accéder au Studio
+Vous pouvez accéder au studio de deux manières simples :
+- **Directement depuis le dongle** : Rendez-vous sur `http://tv-remote.local/designer` (ou cliquez sur *"Open Layout & Macro Designer"* sur la page de configuration).
+- **En local / Hors-ligne** : Ouvrez `companion/index.html` dans n'importe quel navigateur web sur votre ordinateur, Mac ou tablette.
+
+### Fonctionnalités principales
+1. **Profils multi-pages par appareil** :
+   - Créez des dispositions personnalisées pour différents appareils : téléviseurs connectés, PC Windows, Mac Apple, Kodi ou Android TV.
+   - Organisez vos boutons en sous-pages (ex. *Navigation*, *Pavé numérique*, *Multimédia*, *Raccourcis*).
+   - Définissez le nombre de colonnes de la grille (2 à 6 colonnes) et la largeur des touches (1x1, 2x1 large, pleine largeur).
+2. **Moteur de macros hybride DuckyScript** :
+   - Chaque touche peut déclencher une frappe HID unique ou une **macro multi-étapes de type Rubber Ducky**.
+   - Utilisez le **Générateur visuel** pour assembler vos étapes (*Saisir du texte*, *Combinaison de touches*, *Délai*, *Touche Entrée*) ou écrivez directement le script DuckyScript dans l'éditeur de texte.
+   - Prend en charge : `STRING <texte>`, `DELAY <ms>`, `GUI <touche>`, `CTRL <touche>`, `ALT <touche>`, `SHIFT <touche>`, `REPEAT <n>`, et les touches multimédia (`VOL_UP`, `MUTE`, `PLAY_PAUSE`).
+3. **Double stockage (Mémoire Flash interne & MicroSD)** :
+   - Les profils sont sauvegardés dans la mémoire flash **LittleFS** interne de l'ESP32-S3.
+   - Si une carte MicroSD est insérée dans le lecteur TF du T-Dongle-S3, le microprogramme la détecte automatiquement.
+4. **Déploiement sur le dongle** :
+   - Cliquez sur **"Deploy to LilyGO"** pour téléverser le profil directement en Wi-Fi.
+   - **Sécurité d'appairage obligatoire** : La gestion et le téléversement de profils exigent une confirmation physique. Cliquez sur *"Pair Dongle"* dans le studio, puis appuyez sur le bouton physique du dongle pour autoriser l'accès.
+5. **Changement rapide de profil** :
+   - Sur la **page de configuration** (`http://tv-remote.local/setup`), sélectionnez le profil désiré dans le menu déroulant *"Active Remote Profile"* et cliquez sur *"Switch Active"*. L'interface de télécommande se met à jour instantanément.
+
+---
+
+## 6. Installation sous forme d'application web (PWA)
+
 
 Vous pouvez installer la télécommande comme une véritable application sur votre smartphone, sans passer par un magasin d'applications.
 
@@ -143,7 +173,8 @@ Vous pouvez installer la télécommande comme une véritable application sur vot
 
 ---
 
-## 6. Bouton physique et Réinitialisation d'usine
+## 7. Bouton physique et Réinitialisation d'usine
+
 
 Le bouton physique situé sur le dessus du T-Dongle-S3 propose deux modes de fonctionnement :
 
@@ -187,7 +218,8 @@ Pour éviter toute réinitialisation accidentelle, une confirmation en deux éta
 
 ---
 
-## 7. Architecture de Sécurité et Chiffrement
+## 8. Architecture de Sécurité et Chiffrement
+
 
 L'appareil intègre des standards de sécurité matérielle rigoureux :
 
@@ -215,7 +247,8 @@ L'appareil intègre des standards de sécurité matérielle rigoureux :
 
 ---
 
-## 8. Dépannage et Foire Aux Questions (FAQ)
+## 9. Dépannage et Foire Aux Questions (FAQ)
+
 
 ### L'écran reste complètement noir. Que faire ?
 1. Assurez-vous que le dongle est convenablement inséré dans un port USB alimenté.

@@ -18,7 +18,15 @@
 #include "mbedtls/md.h"
 
 #include "../include/config.h"
+#include <LittleFS.h>
+#include <SD.h>
+#include <SPI.h>
+#include <ArduinoJson.h>
+#include "default_profile.h"
 #include "webpage.h"
+#include "designer_page.h"
+
+
 
 // USB HID objects
 USBHIDKeyboard Keyboard;
@@ -75,6 +83,10 @@ enum SystemState {
 SystemState currentState = STATE_NORMAL;
 unsigned long resetPromptStartTime = 0;
 
+// Profile & Macro Management
+String activeProfileId = DEFAULT_PROFILE_ID;
+bool isSdCardAvailable = false;
+
 // Forward declarations
 void initCrypto();
 bool getOrProvisionHmacKey(hmac_key_id_t &slot);
@@ -99,6 +111,18 @@ void setupRoutes();
 void handleKeyCommand(const String& key);
 void handleTextCommand(const String& text);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
+
+// Profile & Macro Prototypes
+void initStorage();
+String getActiveProfileJson();
+String listProfilesJson();
+bool setActiveProfile(const String& id);
+bool saveProfile(const String& id, const String& jsonContent);
+bool deleteProfile(const String& id);
+uint8_t parseDuckyKey(const String& k);
+uint16_t parseConsumerKey(const String& k);
+void executeDuckyScript(const String& script);
+
 
 // =========================================================================
 // Input Sanitization & String Helpers (F-05 XSS Mitigation)
@@ -505,8 +529,12 @@ void setup() {
   // Initialize Hardware Security & Key Derivation
   initCrypto();
 
+  // Initialize Dynamic Profile Storage (LittleFS / SD)
+  initStorage();
+
   // Connect to Wi-Fi or launch Fallback AP
   connectToSavedWifi();
+
 
   // Setup mDNS responder (http://<hostname>.local)
   if (MDNS.begin(mdnsHostname.c_str())) {
@@ -716,6 +744,350 @@ void showPairingSuccessScreen() {
 }
 
 // =========================================================================
+// Dynamic Profile Storage & File System Manager
+// =========================================================================
+void initStorage() {
+  if (!LittleFS.begin(true)) {
+    Serial.println("[STORAGE] LittleFS Mount Failed!");
+  } else {
+    Serial.println("[STORAGE] LittleFS Mounted successfully.");
+  }
+
+  // Check SD card on SPI pins
+  SPIClass sdSpi(FSPI);
+  sdSpi.begin(PIN_SD_CLK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
+  if (SD.begin(PIN_SD_CS, sdSpi)) {
+    isSdCardAvailable = true;
+    Serial.println("[STORAGE] MicroSD card detected and mounted!");
+    if (!SD.exists(PROFILES_DIR)) SD.mkdir(PROFILES_DIR);
+  } else {
+    isSdCardAvailable = false;
+    Serial.println("[STORAGE] MicroSD card not present, using internal LittleFS.");
+  }
+
+  if (!LittleFS.exists(PROFILES_DIR)) {
+    LittleFS.mkdir(PROFILES_DIR);
+  }
+
+  if (!LittleFS.exists("/profiles/default-tv.json")) {
+    File f = LittleFS.open("/profiles/default-tv.json", "w");
+    if (f) {
+      f.print(FPSTR(DEFAULT_PROFILE_TV));
+      f.close();
+      Serial.println("[STORAGE] Installed built-in default-tv.json");
+    }
+  }
+
+  if (!LittleFS.exists("/profiles/pc-media.json")) {
+    File f = LittleFS.open("/profiles/pc-media.json", "w");
+    if (f) {
+      f.print(FPSTR(DEFAULT_PROFILE_PC));
+      f.close();
+      Serial.println("[STORAGE] Installed built-in pc-media.json");
+    }
+  }
+
+  if (LittleFS.exists(ACTIVE_PROFILE_FILE)) {
+    File f = LittleFS.open(ACTIVE_PROFILE_FILE, "r");
+    if (f) {
+      String id = f.readStringUntil('\n');
+      id.trim();
+      if (id.length() > 0) activeProfileId = id;
+      f.close();
+    }
+  } else {
+    File f = LittleFS.open(ACTIVE_PROFILE_FILE, "w");
+    if (f) {
+      f.println(DEFAULT_PROFILE_ID);
+      f.close();
+    }
+  }
+  Serial.printf("[STORAGE] Active profile: %s\n", activeProfileId.c_str());
+}
+
+String getActiveProfileJson() {
+  String path = "/profiles/" + activeProfileId + ".json";
+  if (isSdCardAvailable && SD.exists(path)) {
+    File f = SD.open(path, "r");
+    if (f) {
+      String content = f.readString();
+      f.close();
+      return content;
+    }
+  }
+  if (LittleFS.exists(path)) {
+    File f = LittleFS.open(path, "r");
+    if (f) {
+      String content = f.readString();
+      f.close();
+      return content;
+    }
+  }
+  return FPSTR(DEFAULT_PROFILE_TV);
+}
+
+String listProfilesJson() {
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+
+  File dir = LittleFS.open(PROFILES_DIR);
+  if (dir && dir.isDirectory()) {
+    File file = dir.openNextFile();
+    while (file) {
+      String fname = file.name();
+      if (fname.endsWith(".json")) {
+        String content = file.readString();
+        JsonDocument pdoc;
+        DeserializationError err = deserializeJson(pdoc, content);
+        if (!err) {
+          JsonObject item = arr.add<JsonObject>();
+          String pid = pdoc["id"] | fname.substring(0, fname.length() - 5);
+          item["id"] = pid;
+          item["name"] = pdoc["name"] | pid;
+          item["icon"] = pdoc["icon"] | "tv";
+          item["deviceType"] = pdoc["deviceType"] | "tv";
+          item["active"] = (pid == activeProfileId);
+        }
+      }
+      file = dir.openNextFile();
+    }
+  }
+  String out;
+  serializeJson(arr, out);
+  return out;
+}
+
+bool setActiveProfile(const String& id) {
+  String safeId = sanitizeHostname(id);
+  if (safeId.length() == 0) return false;
+  String path = "/profiles/" + safeId + ".json";
+  if (!LittleFS.exists(path) && (!isSdCardAvailable || !SD.exists(path))) {
+    return false;
+  }
+  activeProfileId = safeId;
+  File f = LittleFS.open(ACTIVE_PROFILE_FILE, "w");
+  if (f) {
+    f.println(safeId);
+    f.close();
+  }
+  Serial.printf("[STORAGE] Switched active profile to: %s\n", safeId.c_str());
+  return true;
+}
+
+bool saveProfile(const String& id, const String& jsonContent) {
+  String safeId = sanitizeHostname(id);
+  if (safeId.length() == 0 || jsonContent.length() == 0) return false;
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, jsonContent);
+  if (err) {
+    Serial.printf("[STORAGE] JSON parse error: %s\n", err.c_str());
+    return false;
+  }
+
+  doc["id"] = safeId;
+  String path = "/profiles/" + safeId + ".json";
+  File f = LittleFS.open(path, "w");
+  if (!f) return false;
+  serializeJson(doc, f);
+  f.close();
+  Serial.printf("[STORAGE] Saved profile: %s\n", safeId.c_str());
+  return true;
+}
+
+bool deleteProfile(const String& id) {
+  String safeId = sanitizeHostname(id);
+  if (safeId == DEFAULT_PROFILE_ID || safeId == "default-tv") {
+    return false;
+  }
+  String path = "/profiles/" + safeId + ".json";
+  if (LittleFS.exists(path)) {
+    LittleFS.remove(path);
+  }
+  if (isSdCardAvailable && SD.exists(path)) {
+    SD.remove(path);
+  }
+  if (activeProfileId == safeId) {
+    setActiveProfile(DEFAULT_PROFILE_ID);
+  }
+  return true;
+}
+
+// =========================================================================
+// DuckyScript Parser & Consumer Control Mapping
+// =========================================================================
+uint8_t parseDuckyKey(const String& k) {
+  String u = k;
+  u.toUpperCase();
+  u.trim();
+  if (u == "ENTER" || u == "RETURN" || u == "OK") return KEY_RETURN;
+  if (u == "ESC" || u == "ESCAPE" || u == "BACK") return KEY_ESC;
+  if (u == "BACKSPACE" || u == "BKSP") return KEY_BACKSPACE;
+  if (u == "TAB" || u == "INFO") return KEY_TAB;
+  if (u == "SPACE") return ' ';
+  if (u == "CAPSLOCK" || u == "CAPS") return KEY_CAPS_LOCK;
+  if (u == "DELETE" || u == "DEL") return KEY_DELETE;
+  if (u == "INSERT" || u == "INS") return KEY_INSERT;
+  if (u == "UP" || u == "UPARROW") return KEY_UP_ARROW;
+  if (u == "DOWN" || u == "DOWNARROW") return KEY_DOWN_ARROW;
+  if (u == "LEFT" || u == "LEFTARROW") return KEY_LEFT_ARROW;
+  if (u == "RIGHT" || u == "RIGHTARROW") return KEY_RIGHT_ARROW;
+  if (u == "PAGEUP" || u == "PAGE_UP") return KEY_PAGE_UP;
+  if (u == "PAGEDOWN" || u == "PAGE_DOWN") return KEY_PAGE_DOWN;
+  if (u == "HOME") return KEY_LEFT_GUI;
+  if (u == "END") return KEY_END;
+  if (u == "PRINTSCREEN" || u == "PRTSCN") return 0xCE;
+  if (u == "SCROLLLOCK") return 0xCF;
+  if (u == "PAUSE" || u == "BREAK") return 0xD0;
+  if (u == "F1") return KEY_F1;
+  if (u == "F2") return KEY_F2;
+  if (u == "F3") return KEY_F3;
+  if (u == "F4") return KEY_F4;
+  if (u == "F5") return KEY_F5;
+  if (u == "F6") return KEY_F6;
+  if (u == "F7") return KEY_F7;
+  if (u == "F8") return KEY_F8;
+  if (u == "F9") return KEY_F9;
+  if (u == "F10") return KEY_F10;
+  if (u == "F11") return KEY_F11;
+  if (u == "F12") return KEY_F12;
+  if (u.startsWith("KEY_") && u.length() == 5) return (uint8_t)u[4];
+  if (u.length() == 1) return (uint8_t)u[0];
+  return 0;
+}
+
+uint16_t parseConsumerKey(const String& k) {
+  String u = k;
+  u.toUpperCase();
+  u.trim();
+  if (u == "VOL_UP" || u == "VOLUMEUP" || u == "VOLUP") return CONSUMER_CONTROL_VOLUME_INCREMENT;
+  if (u == "VOL_DOWN" || u == "VOLUMEDOWN" || u == "VOLDOWN") return CONSUMER_CONTROL_VOLUME_DECREMENT;
+  if (u == "MUTE") return CONSUMER_CONTROL_MUTE;
+  if (u == "PLAY_PAUSE" || u == "PLAY" || u == "PAUSE") return CONSUMER_CONTROL_PLAY_PAUSE;
+  if (u == "NEXT" || u == "NEXT_TRACK") return CONSUMER_CONTROL_SCAN_NEXT;
+  if (u == "PREV" || u == "PREV_TRACK") return CONSUMER_CONTROL_SCAN_PREVIOUS;
+  if (u == "STOP") return CONSUMER_CONTROL_STOP;
+  if (u == "POWER") return CONSUMER_CONTROL_POWER;
+  return 0;
+}
+
+
+void executeDuckyScript(const String& script) {
+  wakeScreen();
+  int start = 0;
+  int len = script.length();
+  String lastCommand = "";
+
+  Serial.printf("[MACRO] Executing DuckyScript (%d bytes)...\n", len);
+
+  while (start < len) {
+    int end = script.indexOf('\n', start);
+    if (end == -1) end = len;
+    String line = script.substring(start, end);
+    line.trim();
+    start = end + 1;
+
+    if (line.length() == 0 || line.startsWith("REM ") || line == "REM") continue;
+
+    if (line.startsWith("DELAY ")) {
+      int ms = line.substring(6).toInt();
+      if (ms > 0 && ms <= 10000) delay(ms);
+      continue;
+    }
+
+    if (line.startsWith("STRING ")) {
+      String text = line.substring(7);
+      Keyboard.print(text);
+      lastCommand = line;
+      continue;
+    }
+
+    if (line.startsWith("REPEAT ")) {
+      int count = line.substring(7).toInt();
+      if (count > 0 && count <= 30 && lastCommand.length() > 0) {
+        for (int i = 0; i < count; i++) {
+          executeDuckyScript(lastCommand);
+        }
+      }
+      continue;
+    }
+
+    // Check modifier combos
+    bool hasGui = false, hasCtrl = false, hasAlt = false, hasShift = false;
+    String remaining = line;
+    bool matchedMod = true;
+    while (matchedMod && remaining.length() > 0) {
+      matchedMod = false;
+      if (remaining.startsWith("GUI ") || remaining.startsWith("WINDOWS ") || remaining.startsWith("COMMAND ")) {
+        hasGui = true;
+        remaining = remaining.substring(remaining.indexOf(' ') + 1);
+        remaining.trim();
+        matchedMod = true;
+      } else if (remaining.startsWith("CTRL ") || remaining.startsWith("CONTROL ")) {
+        hasCtrl = true;
+        remaining = remaining.substring(remaining.indexOf(' ') + 1);
+        remaining.trim();
+        matchedMod = true;
+      } else if (remaining.startsWith("ALT ")) {
+        hasAlt = true;
+        remaining = remaining.substring(remaining.indexOf(' ') + 1);
+        remaining.trim();
+        matchedMod = true;
+      } else if (remaining.startsWith("SHIFT ")) {
+        hasShift = true;
+        remaining = remaining.substring(remaining.indexOf(' ') + 1);
+        remaining.trim();
+        matchedMod = true;
+      }
+    }
+
+    if (hasGui || hasCtrl || hasAlt || hasShift) {
+      if (hasGui) Keyboard.press(KEY_LEFT_GUI);
+      if (hasCtrl) Keyboard.press(KEY_LEFT_CTRL);
+      if (hasAlt) Keyboard.press(KEY_LEFT_ALT);
+      if (hasShift) Keyboard.press(KEY_LEFT_SHIFT);
+
+      if (remaining.length() > 0) {
+        uint8_t k = parseDuckyKey(remaining);
+        if (k != 0) Keyboard.press(k);
+        else if (remaining.length() == 1) Keyboard.press(remaining[0]);
+      }
+      delay(50);
+      Keyboard.releaseAll();
+      lastCommand = line;
+      continue;
+    }
+
+    // Check consumer keys
+    uint16_t ck = parseConsumerKey(line);
+    if (ck != 0) {
+      ConsumerControl.press(ck);
+      delay(50);
+      ConsumerControl.release();
+      lastCommand = line;
+      continue;
+    }
+
+    // Check single key
+    uint8_t dk = parseDuckyKey(line);
+    if (dk != 0) {
+      Keyboard.press(dk);
+      delay(40);
+      Keyboard.release(dk);
+      lastCommand = line;
+      continue;
+    }
+
+    // Fallback single character
+    if (line.length() == 1) {
+      Keyboard.write(line[0]);
+      lastCommand = line;
+      continue;
+    }
+  }
+}
+
+// =========================================================================
 // Command Execution & Logging Scrubbing (F-06)
 // =========================================================================
 void handleTextCommand(const String& text) {
@@ -729,60 +1101,24 @@ void handleTextCommand(const String& text) {
 void handleKeyCommand(const String& key) {
   wakeScreen();
   size_t p = 0;
-  if (key == "UP") {
-    p = Keyboard.press(KEY_UP_ARROW);
+  uint16_t ck = parseConsumerKey(key);
+  if (ck != 0) {
+    p = ConsumerControl.press(ck);
     delay(40);
-    Keyboard.release(KEY_UP_ARROW);
-  } else if (key == "DOWN") {
-    p = Keyboard.press(KEY_DOWN_ARROW);
-    delay(40);
-    Keyboard.release(KEY_DOWN_ARROW);
-  } else if (key == "LEFT") {
-    p = Keyboard.press(KEY_LEFT_ARROW);
-    delay(40);
-    Keyboard.release(KEY_LEFT_ARROW);
-  } else if (key == "RIGHT") {
-    p = Keyboard.press(KEY_RIGHT_ARROW);
-    delay(40);
-    Keyboard.release(KEY_RIGHT_ARROW);
-  } else if (key == "ENTER") {
-    p = Keyboard.press(KEY_RETURN);
-    delay(40);
-    Keyboard.release(KEY_RETURN);
-  } else if (key == "BACK") {
-    p = Keyboard.press(KEY_ESC);
-    delay(40);
-    Keyboard.release(KEY_ESC);
-  } else if (key == "HOME") {
-    p = Keyboard.press(KEY_LEFT_GUI);
-    delay(40);
-    Keyboard.release(KEY_LEFT_GUI);
-  } else if (key == "BACKSPACE") {
-    p = Keyboard.press(KEY_BACKSPACE);
-    delay(40);
-    Keyboard.release(KEY_BACKSPACE);
-  } else if (key == "SPACE") {
+    ConsumerControl.release();
+    Serial.printf("[HID] Dispatched consumer key: %s\n", key.c_str());
+    return;
+  }
+
+  if (key == "SPACE") {
     p = Keyboard.write(' ');
-  } else if (key == "TAB") {
-    p = Keyboard.press(KEY_TAB);
-    delay(40);
-    Keyboard.release(KEY_TAB);
-  } else if (key == "VOL_UP") {
-    p = ConsumerControl.press(CONSUMER_CONTROL_VOLUME_INCREMENT);
-    delay(40);
-    ConsumerControl.release();
-  } else if (key == "VOL_DOWN") {
-    p = ConsumerControl.press(CONSUMER_CONTROL_VOLUME_DECREMENT);
-    delay(40);
-    ConsumerControl.release();
-  } else if (key == "MUTE") {
-    p = ConsumerControl.press(CONSUMER_CONTROL_MUTE);
-    delay(40);
-    ConsumerControl.release();
-  } else if (key == "PLAY_PAUSE") {
-    p = ConsumerControl.press(CONSUMER_CONTROL_PLAY_PAUSE);
-    delay(40);
-    ConsumerControl.release();
+  } else {
+    uint8_t dk = parseDuckyKey(key);
+    if (dk != 0) {
+      p = Keyboard.press(dk);
+      delay(40);
+      Keyboard.release(dk);
+    }
   }
   Serial.printf("[HID] Dispatched key: %s (status: %u)\n", key.c_str(), (unsigned)p);
 }
@@ -836,9 +1172,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         handleTextCommand(msg.substring(2));
       } else if (msg.startsWith("K:")) {
         handleKeyCommand(msg.substring(2));
+      } else if (msg.startsWith("M:")) {
+        executeDuckyScript(msg.substring(2));
       }
       break;
     }
+
 
     default:
       break;
@@ -849,6 +1188,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 // HTTP Routes & Security Endpoints
 // =========================================================================
 void setupRoutes() {
+  server.enableCORS(true);
+
   // Main Remote Interface (Isolated in unconfigured AP setup mode)
   server.on("/", HTTP_GET, []() {
     if (isApMode && !isConfigured) {
@@ -861,6 +1202,7 @@ void setupRoutes() {
     String html = FPSTR(PAGE_INDEX_TEMPLATE);
     html.replace("%ROOM_NAME%", htmlEscape(roomName));
     html.replace("%AUTH_REQUIRED%", authRequired ? "true" : "false");
+    html.replace("%ACTIVE_PROFILE_JSON%", getActiveProfileJson());
     server.send(200, "text/html", html);
   });
 
@@ -889,7 +1231,13 @@ void setupRoutes() {
     server.send(200, "application/manifest+json", manifest);
   });
 
+  // Companion Layout & Macro Designer Studio
+  server.on("/designer", HTTP_GET, []() {
+    server.send(200, "text/html", FPSTR(PAGE_DESIGNER));
+  });
+
   // Setup Portal Page
+
   server.on("/setup", HTTP_GET, []() {
     int n = WiFi.scanNetworks();
     String wifiOptions = "";
@@ -913,6 +1261,19 @@ void setupRoutes() {
     html.replace("%MODE_STA_SELECTED%", opMode == "ap" ? "" : "selected");
     html.replace("%MODE_AP_SELECTED%", opMode == "ap" ? "selected" : "");
     html.replace("%AUTH_CHECKED%", authRequired ? "checked" : "");
+
+    // Profile Options for Quick-Switcher
+    String profileOpts = "";
+    JsonDocument pListDoc;
+    deserializeJson(pListDoc, listProfilesJson());
+    JsonArray pArr = pListDoc.as<JsonArray>();
+    for (JsonObject p : pArr) {
+      String pid = p["id"].as<String>();
+      String pname = p["name"].as<String>();
+      bool isAct = p["active"].as<bool>();
+      profileOpts += "<option value=\"" + htmlEscape(pid) + "\"" + (isAct ? " selected" : "") + ">" + htmlEscape(pname) + "</option>\n";
+    }
+    html.replace("%PROFILE_OPTIONS%", profileOpts);
 
     // Dynamic Crypto Status Badge (F-11 Remediation)
     if (hmacAvailable) {
@@ -993,7 +1354,6 @@ void setupRoutes() {
     }
 
     if (!authRequired) {
-      // Open mode: immediately issue signed token
       String token = generateSignedToken(devId);
       server.send(200, "application/json", "{\"status\":\"approved\",\"token\":\"" + token + "\"}");
       return;
@@ -1035,6 +1395,88 @@ void setupRoutes() {
     }
   });
 
+  // ==========================================
+  // Profile & Macro API Endpoints (Mandatory Pairing Auth)
+  // ==========================================
+  server.on("/api/profiles", HTTP_GET, []() {
+    server.send(200, "application/json", listProfilesJson());
+  });
+
+  server.on("/api/profiles/active", HTTP_GET, []() {
+    server.send(200, "application/json", getActiveProfileJson());
+  });
+
+  server.on("/api/profiles/set_active", HTTP_POST, []() {
+    String token = server.hasArg("token") ? server.arg("token") : server.header("X-Auth-Token");
+    if (!verifyDeviceToken(token)) {
+      server.send(401, "application/json", "{\"error\":\"Pairing authorization required to manage profiles\"}");
+      return;
+    }
+    String id = server.arg("id");
+    if (setActiveProfile(id)) {
+      server.send(200, "application/json", "{\"status\":\"ok\",\"active\":\"" + activeProfileId + "\"}");
+    } else {
+      server.send(404, "application/json", "{\"error\":\"Profile not found\"}");
+    }
+  });
+
+  server.on("/api/profiles/upload", HTTP_POST, []() {
+    String token = server.hasArg("token") ? server.arg("token") : server.header("X-Auth-Token");
+    if (!verifyDeviceToken(token)) {
+      server.send(401, "application/json", "{\"error\":\"Pairing authorization required to manage profiles\"}");
+      return;
+    }
+    String body = server.arg("plain");
+    if (body.length() == 0 && server.hasArg("json")) body = server.arg("json");
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON format\"}");
+      return;
+    }
+    String id = doc["id"].as<String>();
+    if (id.length() == 0) {
+      id = "profile-" + String(millis());
+    }
+    if (saveProfile(id, body)) {
+      if (server.hasArg("set_active") && server.arg("set_active") == "1") {
+        setActiveProfile(id);
+      }
+      server.send(200, "application/json", "{\"status\":\"ok\",\"id\":\"" + id + "\"}");
+    } else {
+      server.send(500, "application/json", "{\"error\":\"Failed to save profile\"}");
+    }
+  });
+
+  server.on("/api/profiles/delete", HTTP_POST, []() {
+    String token = server.hasArg("token") ? server.arg("token") : server.header("X-Auth-Token");
+    if (!verifyDeviceToken(token)) {
+      server.send(401, "application/json", "{\"error\":\"Pairing authorization required to manage profiles\"}");
+      return;
+    }
+    String id = server.arg("id");
+    if (deleteProfile(id)) {
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      server.send(400, "application/json", "{\"error\":\"Cannot delete profile\"}");
+    }
+  });
+
+  // Macro Execution Endpoint
+  server.on("/api/macro/run", HTTP_POST, []() {
+    String token = server.hasArg("token") ? server.arg("token") : server.header("X-Auth-Token");
+    if (authRequired && !verifyDeviceToken(token)) {
+      server.send(401, "application/json", "{\"error\":\"Unauthorized: Valid pairing token required.\"}");
+      return;
+    }
+    String script = server.hasArg("script") ? server.arg("script") : server.arg("plain");
+    if (script.startsWith("E:")) script = decryptPayload(script);
+    if (script.startsWith("M:")) script = script.substring(2);
+    executeDuckyScript(script);
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  });
+
   // HTTP Fallback Commands (Authenticated & Encrypted)
   server.on("/sendtext", HTTP_POST, []() {
     if (authRequired && !verifyDeviceToken(server.arg("token"))) {
@@ -1067,3 +1509,4 @@ void setupRoutes() {
     }
   });
 }
+
