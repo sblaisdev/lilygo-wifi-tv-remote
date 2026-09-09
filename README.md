@@ -25,5 +25,5 @@ Firmware for the **LilyGO T-Dongle-S3** (ESP32-S3) turning the USB dongle into a
 5. **Standalone AP or Station Mode**: Connect to your existing home Wi-Fi or configure a permanent standalone hotspot for direct phone-to-TV control while traveling.
 6. **PWA Ready**: Installable to iOS and Android home screens with a custom neon TV remote icon.
 7. **Fail-Safe Factory Reset**: 10-second button hold with two-step confirmation erases NVS flash while preserving hardware eFuses.
-8. **Universal Companion Studio & DuckyScript Macros**: A Touch-Portal & Logitech Harmony inspired companion app (`/designer` or `companion/index.html`) to visually build custom button grids and inject Rubber Ducky keystroke macros directly over Wi-Fi. Profiles are saved on-chip in LittleFS with automatic MicroSD card detection.
+8. **Universal Companion Studio & DuckyScript Macros**: An intuitive layout & macro designer companion app (`/designer` or `companion/index.html`) to visually build custom button grids and inject automated keystroke macros directly over Wi-Fi. Profiles are saved on-chip in LittleFS with automatic MicroSD card detection.
 

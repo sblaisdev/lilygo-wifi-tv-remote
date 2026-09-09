@@ -126,7 +126,7 @@ Searching for movies or entering passwords using an on-screen TV keyboard is ted
 
 ## 5. Device Profiles & Macro Studio (Companion App)
 
-The firmware includes a universal companion app inspired by **Touch Portal**, **USB Rubber Ducky**, and **Logitech Universal Remotes**.
+The firmware includes a universal companion app for designing custom remote layouts, macro buttons, and programmable multi-page keypads.
 
 ### Accessing the Studio
 You can access the studio in two convenient ways:
@@ -139,7 +139,7 @@ You can access the studio in two convenient ways:
    - Organize controls into sub-pages (e.g. *Navigation*, *Numpad*, *Media Playback*, *Shortcuts*).
    - Configure grid columns (2 to 6 columns) and custom button spans (1x1, 2x1 wide, full width).
 2. **Hybrid DuckyScript Macro Engine**:
-   - Each button can trigger a single HID key or a multi-step **Rubber Ducky macro**.
+   - Each button can trigger a single HID key or a multi-step **DuckyScript macro**.
    - Use the **Visual Builder** to add action steps (*Type Text*, *Key Combo*, *Delay*, *Enter*) or write raw DuckyScript directly in the text editor.
    - Supports: `STRING <text>`, `DELAY <ms>`, `GUI <key>`, `CTRL <key>`, `ALT <key>`, `SHIFT <key>`, `REPEAT <n>`, and Consumer Keys (`VOL_UP`, `MUTE`, `PLAY_PAUSE`).
 3. **Dual Storage (Internal Flash & MicroSD)**:

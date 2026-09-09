@@ -125,8 +125,7 @@ Rechercher une vidéo ou saisir un mot de passe avec une télécommande classiqu
 ---
 
 ## 5. Profils d'appareils et Studio de Macros (Companion App)
-
-Le microprogramme intègre une application compagnon universelle inspirée de **Touch Portal**, **USB Rubber Ducky** et des **télécommandes universelles Logitech Harmony**.
+Le microprogramme intègre une application compagnon universelle permettant de concevoir des télécommandes sur mesure, des touches macros et des pavés de commande multi-pages.
 
 ### Accéder au Studio
 Vous pouvez accéder au studio de deux manières simples :
@@ -139,7 +138,7 @@ Vous pouvez accéder au studio de deux manières simples :
    - Organisez vos boutons en sous-pages (ex. *Navigation*, *Pavé numérique*, *Multimédia*, *Raccourcis*).
    - Définissez le nombre de colonnes de la grille (2 à 6 colonnes) et la largeur des touches (1x1, 2x1 large, pleine largeur).
 2. **Moteur de macros hybride DuckyScript** :
-   - Chaque touche peut déclencher une frappe HID unique ou une **macro multi-étapes de type Rubber Ducky**.
+   - Chaque touche peut déclencher une frappe HID unique ou une **macro multi-étapes en DuckyScript**.
    - Utilisez le **Générateur visuel** pour assembler vos étapes (*Saisir du texte*, *Combinaison de touches*, *Délai*, *Touche Entrée*) ou écrivez directement le script DuckyScript dans l'éditeur de texte.
    - Prend en charge : `STRING <texte>`, `DELAY <ms>`, `GUI <touche>`, `CTRL <touche>`, `ALT <touche>`, `SHIFT <touche>`, `REPEAT <n>`, et les touches multimédia (`VOL_UP`, `MUTE`, `PLAY_PAUSE`).
 3. **Double stockage (Mémoire Flash interne & MicroSD)** :

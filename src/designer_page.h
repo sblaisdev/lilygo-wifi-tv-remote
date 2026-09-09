@@ -611,7 +611,7 @@ button.danger {
           <label>Action Type</label>
           <select id="btnAction" class="form-select" onchange="changeBtnAction()">
             <option value="hid">Single HID Key (TV / PC Key)</option>
-            <option value="macro">Rubber Ducky Macro (Script)</option>
+            <option value="macro">DuckyScript Macro (Script)</option>
             <option value="none">Empty Spacer</option>
           </select>
         </div>
@@ -724,7 +724,7 @@ button.danger {
           </select>
         </div>
 
-        <!-- Rubber Ducky Macro Settings -->
+        <!-- DuckyScript Macro Settings -->
         <div id="macroConfig" style="display: none;">
           <div class="macro-tabs">
             <button class="macro-tab-btn active" id="tabBtnVisual" onclick="switchMacroTab('visual')">Visual Builder</button>
