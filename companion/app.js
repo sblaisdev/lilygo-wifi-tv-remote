@@ -221,6 +221,11 @@ let selectedBtnIdx = null;
 
 // Initialize on Load
 window.addEventListener('DOMContentLoaded', () => {
+  if (window.location.protocol === 'https:') {
+    const banner = document.getElementById('httpsBanner');
+    if (banner) banner.style.display = 'flex';
+  }
+
   const saved = localStorage.getItem('lilygo_studio_profile');
   if (saved) {
     try {
@@ -687,8 +692,69 @@ async function checkConnection() {
 }
 
 // Deploy over Wi-Fi
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.innerText = msg;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 2500);
+}
+
+function copyProfileJson() {
+  const jsonStr = JSON.stringify(profile, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(jsonStr).then(() => {
+      showToast('Profile JSON copied to clipboard! 📋');
+    }).catch(err => {
+      prompt('Copy the profile JSON below:', jsonStr);
+    });
+  } else {
+    prompt('Copy the profile JSON below:', jsonStr);
+  }
+}
+
+async function deployViaUsb() {
+  if (!('serial' in navigator)) {
+    alert('WebSerial is not supported in this browser. Please open this page in Google Chrome or Microsoft Edge to deploy directly via USB.');
+    return;
+  }
+  try {
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    
+    const jsonPayload = JSON.stringify(profile);
+    const cmd = `PROFILE_UPLOAD:${jsonPayload}\n`;
+    await writer.write(encoder.encode(cmd));
+    writer.releaseLock();
+    await port.close();
+    
+    showToast('🎉 Profile sent to LilyGO via USB!');
+    alert(`🎉 Profile "${profile.name}" successfully sent to LilyGO over USB Serial!`);
+  } catch (err) {
+    if (err.name !== 'NotFoundError') {
+      alert('USB Deploy notice: ' + err.message);
+    }
+  }
+}
+
 async function deployToDongle() {
   const host = getTargetHost();
+
+  if (window.location.protocol === 'https:' && host.startsWith('http://')) {
+    alert(
+      '⚠️ HTTPS Mixed-Content Notice:\n\n' +
+      'Browsers block direct Wi-Fi network requests from HTTPS sites (like GitHub Pages) to local HTTP devices.\n\n' +
+      'To deploy to your dongle:\n' +
+      '1. Click "Export JSON" (or "Copy JSON").\n' +
+      '2. Open your dongle setup page (http://tv-remote.local/setup).\n' +
+      '3. Select the file in "Upload Profile JSON" and click Save.\n\n' +
+      'Or click "⚡ USB Deploy" to sync directly over USB!'
+    );
+    return;
+  }
+
   const token = localStorage.getItem('tv_remote_token') || '';
 
   if (!token) {

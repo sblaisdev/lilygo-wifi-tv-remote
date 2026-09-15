@@ -24,7 +24,6 @@
 #include <ArduinoJson.h>
 #include "default_profile.h"
 #include "webpage.h"
-#include "designer_page.h"
 
 
 
@@ -563,6 +562,28 @@ void loop() {
     pairingPending = false;
     Serial.println("[SECURITY] Pairing request timed out.");
     updateScreenContent();
+  }
+
+  // Serial command handler (WebSerial USB Profile Deploy)
+  if (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.startsWith("PROFILE_UPLOAD:")) {
+      String jsonContent = line.substring(15);
+      JsonDocument doc;
+      DeserializationError err = deserializeJson(doc, jsonContent);
+      if (!err && doc.containsKey("id")) {
+        String id = doc["id"].as<String>();
+        if (saveProfile(id, jsonContent)) {
+          setActiveProfile(id);
+          Serial.println("[USB] Profile saved and set active: " + id);
+        } else {
+          Serial.println("[USB] Error saving profile to storage");
+        }
+      } else {
+        Serial.println("[USB] Invalid JSON received");
+      }
+    }
   }
 
   // ==========================================
@@ -1231,9 +1252,10 @@ void setupRoutes() {
     server.send(200, "application/manifest+json", manifest);
   });
 
-  // Companion Layout & Macro Designer Studio
+  // Companion Layout & Macro Designer Studio (Hosted on GitHub Pages)
   server.on("/designer", HTTP_GET, []() {
-    server.send(200, "text/html", FPSTR(PAGE_DESIGNER));
+    server.sendHeader("Location", "https://sblaisdev.github.io/t-dongle-s3-tv-remote/", true);
+    server.send(302, "text/plain", "Redirecting to GitHub Hosted Designer...");
   });
 
   // Setup Portal Page

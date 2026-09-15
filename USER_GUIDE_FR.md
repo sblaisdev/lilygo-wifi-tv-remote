@@ -128,9 +128,10 @@ Rechercher une vidéo ou saisir un mot de passe avec une télécommande classiqu
 Le microprogramme intègre une application compagnon universelle permettant de concevoir des télécommandes sur mesure, des touches macros et des pavés de commande multi-pages.
 
 ### Accéder au Studio
-Vous pouvez accéder au studio de deux manières simples :
-- **Directement depuis le dongle** : Rendez-vous sur `http://tv-remote.local/designer` (ou cliquez sur *"Open Layout & Macro Designer"* sur la page de configuration).
-- **En local / Hors-ligne** : Ouvrez `companion/index.html` dans n'importe quel navigateur web sur votre ordinateur, Mac ou tablette.
+Vous pouvez accéder au studio de trois manières simples :
+- **Hébergé en ligne sur GitHub Pages** : Ouvrez [https://sblaisdev.github.io/t-dongle-s3-tv-remote/](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) dans n'importe quel navigateur moderne.
+- **Directement depuis le dongle** : Cliquez sur *"Open Layout & Macro Designer"* sur la page de configuration (`http://tv-remote.local/setup`), ou naviguez vers `http://tv-remote.local/designer` (redirection automatique).
+- **En local / Hors-ligne** : Ouvrez `docs/index.html` ou `companion/index.html` dans un navigateur sur votre ordinateur ou tablette.
 
 ### Fonctionnalités principales
 1. **Profils multi-pages par appareil** :

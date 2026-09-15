@@ -129,9 +129,10 @@ Searching for movies or entering passwords using an on-screen TV keyboard is ted
 The firmware includes a universal companion app for designing custom remote layouts, macro buttons, and programmable multi-page keypads.
 
 ### Accessing the Studio
-You can access the studio in two convenient ways:
-- **Directly from the Dongle**: Navigate to `http://tv-remote.local/designer` (or click *"Open Layout & Macro Designer"* on the Settings page).
-- **Offline / Local**: Open `companion/index.html` in any web browser on your PC, Mac, or tablet.
+You can access the studio in three convenient ways:
+- **Hosted on GitHub Pages**: Open [https://sblaisdev.github.io/t-dongle-s3-tv-remote/](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) in any modern browser.
+- **Directly from the Dongle**: Click *"Open Layout & Macro Designer"* on the Settings page (`http://tv-remote.local/setup`), or navigate to `http://tv-remote.local/designer` (redirects automatically).
+- **Offline / Local**: Open `docs/index.html` or `companion/index.html` directly on your PC, Mac, or tablet.
 
 ### Core Capabilities
 1. **Multi-Page Device Profiles**:
