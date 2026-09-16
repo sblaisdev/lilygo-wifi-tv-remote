@@ -24,3 +24,16 @@ For all ESP32 / ESP32-S3 firmware and embedded projects, always enforce the foll
 - Require a **10-second continuous button press** to initiate factory reset.
 - Display an explicit warning on the screen: *"Press button to reset to factory default. Unplug to cancel."*
 - Only perform `preferences.clear()` upon a second confirmed press; preserve hardware eFuses.
+
+## 5. Release Strategy & OTA Gatekeeping
+- **Strict Development / Release Separation**:
+  - Commits to `main` or feature branches must **never** trigger OTA updates to end-user devices.
+  - Releases are triggered **exclusively** by explicitly publishing a GitHub Release (`release: [published]` in GitHub Actions).
+  - Production users must only see official, non-draft, non-prerelease versions (`!draft && !prerelease`).
+- **Version Selector & Rollback**:
+  - The firmware setup portal must always pre-select the latest stable release by default, while keeping previous releases selectable for rollback.
+- **Test Device Channel**:
+  - Beta, release candidates (`-rc`, `-beta`), and custom firmware URLs must remain isolated to devices with persistent **Test Device Mode** (`test_dev` in NVS) enabled.
+- **Version Bumping**:
+  - Update `#define FIRMWARE_VERSION` in `include/config.h` only when explicitly preparing a new release or version milestone, ensuring it matches the GitHub release tag.
+
