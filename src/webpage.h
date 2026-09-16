@@ -988,6 +988,72 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         </div>
       </div>
 
+      <!-- Firmware & Over-The-Air Updates -->
+      <div style="border-top: 1px solid var(--card-border); padding-top: 16px; margin-top: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 1.05rem; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <span>&#x1F680;</span> Firmware &amp; Updates
+          </h3>
+          <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); margin: 0;">%FIRMWARE_VERSION%</span>
+        </div>
+
+        <!-- Test Device Toggle -->
+        <div class="form-group" style="display: flex; align-items: flex-start; gap: 10px; margin: 10px 0 12px 0;">
+          <input type="checkbox" id="test_device_mode" onchange="toggleTestDeviceMode()" %TEST_DEVICE_CHECKED% style="width: 18px; height: 18px; margin-top: 2px;">
+          <div>
+            <label for="test_device_mode" style="cursor: pointer; display: block; font-weight: 600; color: #fff; font-size: 0.85rem;">Test Device Mode (Beta &amp; Pre-releases)</label>
+            <small style="color: var(--text-muted); font-size: 0.72rem; display: block; line-height: 1.3;">Shows pre-releases, test builds, and enables custom firmware URL flashing.</small>
+          </div>
+        </div>
+
+        <div id="testDeviceBadge" style="margin-bottom: 10px; display: %TEST_DEVICE_BADGE_DISPLAY%;">
+          <span class="badge" style="background:#8b5cf630;color:#c084fc;border-color:#8b5cf660;margin:0;">&#x1F9EA; Test Device Channel Active</span>
+        </div>
+
+        <!-- Check for Updates Button -->
+        <button type="button" id="btnCheckUpdates" class="btn-submit" onclick="checkGitHubUpdates()" style="background: #334155; padding: 10px; margin-top: 0; margin-bottom: 10px;">
+          &#x1F50D; Check for Updates on GitHub
+        </button>
+
+        <!-- Version Selector & Cloud Update (Hidden until checked) -->
+        <div id="otaUpdateSection" style="display: none; background: #0f172a; border: 1px solid var(--card-border); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+          <label for="otaVersionSelect" style="display: block; font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-muted);">Select Firmware Version:</label>
+          <select id="otaVersionSelect" onchange="onOtaVersionChange()" style="margin-bottom: 10px;">
+          </select>
+
+          <div id="otaNotes" style="font-size: 0.75rem; color: #94a3b8; background: #1e293b; border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; max-height: 80px; overflow-y: auto; white-space: pre-wrap;"></div>
+
+          <button type="button" id="btnInstallOta" class="btn-submit" onclick="installSelectedOta()" style="background: #10b981; padding: 12px; margin: 0; font-weight: bold;">
+            &#x26A1; Install Selected Firmware
+          </button>
+        </div>
+
+        <!-- Custom URL Input (Only visible in test device mode) -->
+        <div id="customUrlSection" style="display: %CUSTOM_URL_DISPLAY%; background: #1a1528; border: 1px solid #8b5cf640; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+          <label for="customOtaUrl" style="display: block; font-weight: 600; font-size: 0.8rem; color: #c084fc; margin-bottom: 4px;">&#x1F9EA; Custom Firmware URL (.bin):</label>
+          <input type="text" id="customOtaUrl" placeholder="https://example.com/firmware.bin" style="font-size: 0.8rem; margin-bottom: 8px;">
+          <button type="button" class="btn-submit" onclick="installCustomOta()" style="background: #8b5cf6; padding: 8px; margin: 0; font-size: 0.8rem;">Install from Custom URL</button>
+        </div>
+
+        <!-- OTA Progress Display -->
+        <div id="otaProgressCard" style="display: none; background: #0f172a; border: 1px solid #3b82f6; border-radius: 12px; padding: 14px; margin-bottom: 12px; text-align: center;">
+          <div id="otaStatusText" style="font-weight: 600; font-size: 0.88rem; color: #60a5fa; margin-bottom: 8px;">Downloading &amp; installing firmware...</div>
+          <div style="background: #1e293b; border-radius: 8px; height: 12px; overflow: hidden; margin-bottom: 8px;">
+            <div id="otaProgressBar" style="width: 0%; height: 100%; background: #10b981; transition: width 0.3s ease;"></div>
+          </div>
+          <small style="color: #ef4444; font-size: 0.72rem;">Do not disconnect or unplug the dongle!</small>
+        </div>
+
+        <!-- Collapsible Manual Upload Fallback -->
+        <details style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">
+          <summary style="cursor: pointer; padding: 4px 0; color: #94a3b8;">Manual Offline Firmware Upload (.bin)</summary>
+          <form action="/update" method="POST" enctype="multipart/form-data" style="margin-top: 8px;">
+            <input type="file" name="update" accept=".bin" required style="font-size: 0.8rem; margin-bottom: 6px;">
+            <button type="submit" class="btn-submit" style="background: #475569; padding: 8px; margin: 0; font-size: 0.8rem;">Upload &amp; Flash .bin</button>
+          </form>
+        </details>
+      </div>
+
       <p class="note">
         Your Wi-Fi password will be encrypted using the ESP32-S3 Hardware HMAC key before being committed to flash memory.
       </p>
@@ -1097,6 +1163,169 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         }
       };
       reader.readAsText(file);
+    }
+
+    let availableReleases = [];
+    const currentVersion = "%FIRMWARE_VERSION%";
+    const githubRepo = "%GITHUB_REPO%";
+
+    async function toggleTestDeviceMode() {
+      const chk = document.getElementById('test_device_mode');
+      const enabled = chk.checked;
+      try {
+        const res = await fetch('/api/ota/set_test_mode?enabled=' + (enabled ? '1' : '0'), { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          document.getElementById('testDeviceBadge').style.display = enabled ? 'block' : 'none';
+          document.getElementById('customUrlSection').style.display = enabled ? 'block' : 'none';
+          if (availableReleases.length > 0) {
+            populateReleaseDropdown();
+          }
+        }
+      } catch (e) {
+        alert('Failed to update test mode: ' + e);
+      }
+    }
+
+    async function checkGitHubUpdates() {
+      const btn = document.getElementById('btnCheckUpdates');
+      btn.innerText = 'Checking GitHub...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('https://api.github.com/repos/' + githubRepo + '/releases');
+        if (!res.ok) throw new Error('GitHub API response ' + res.status);
+        const releases = await res.json();
+
+        availableReleases = releases.filter(r => !r.draft);
+        if (availableReleases.length === 0) {
+          alert('No published releases found on GitHub repository: ' + githubRepo);
+          btn.innerText = '\uD83D\uDD0D Check for Updates on GitHub';
+          btn.disabled = false;
+          return;
+        }
+
+        populateReleaseDropdown();
+        document.getElementById('otaUpdateSection').style.display = 'block';
+        btn.innerText = '\u2714 Updates Loaded';
+      } catch (err) {
+        alert('Could not check GitHub releases: ' + err.message + '\nEnsure your device has Internet access.');
+        btn.innerText = '\uD83D\uDD0D Check for Updates on GitHub';
+        btn.disabled = false;
+      }
+    }
+
+    function populateReleaseDropdown() {
+      const isTestDevice = document.getElementById('test_device_mode').checked;
+      const filtered = availableReleases.filter(r => isTestDevice || !r.prerelease);
+      const sel = document.getElementById('otaVersionSelect');
+      sel.innerHTML = '';
+
+      if (filtered.length === 0) {
+        sel.innerHTML = '<option value="">No matching releases found</option>';
+        return;
+      }
+
+      filtered.forEach((r, idx) => {
+        let label = r.tag_name;
+        if (idx === 0 && !r.prerelease) label += ' (Latest) — Recommended';
+        else if (idx === 0 && r.prerelease) label += ' \uD83E\uDDEA (Latest Pre-Release)';
+        else if (r.prerelease) label += ' \uD83E\uDDEA (Pre-Release)';
+
+        if (r.tag_name === currentVersion) label += ' [Currently Installed]';
+
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.innerText = label;
+        sel.appendChild(opt);
+      });
+
+      sel.selectedIndex = 0;
+      onOtaVersionChange();
+    }
+
+    function onOtaVersionChange() {
+      const isTestDevice = document.getElementById('test_device_mode').checked;
+      const filtered = availableReleases.filter(r => isTestDevice || !r.prerelease);
+      const sel = document.getElementById('otaVersionSelect');
+      const idx = parseInt(sel.value, 10);
+      const r = filtered[idx];
+      if (!r) return;
+
+      const dateStr = new Date(r.published_at || r.created_at).toLocaleDateString();
+      const notesEl = document.getElementById('otaNotes');
+      notesEl.innerText = 'Released: ' + dateStr + '\n' + (r.body || 'No release description provided.');
+
+      const btn = document.getElementById('btnInstallOta');
+      btn.innerText = '\u26A1 Install ' + r.tag_name;
+    }
+
+    async function installSelectedOta() {
+      const isTestDevice = document.getElementById('test_device_mode').checked;
+      const filtered = availableReleases.filter(r => isTestDevice || !r.prerelease);
+      const sel = document.getElementById('otaVersionSelect');
+      const idx = parseInt(sel.value, 10);
+      const r = filtered[idx];
+      if (!r) return;
+
+      let binUrl = '';
+      if (r.assets && r.assets.length > 0) {
+        const binAsset = r.assets.find(a => a.name.endsWith('.bin'));
+        if (binAsset) binUrl = binAsset.browser_download_url;
+      }
+      if (!binUrl) {
+        binUrl = 'https://github.com/' + githubRepo + '/releases/download/' + r.tag_name + '/firmware.bin';
+      }
+
+      if (!confirm('Are you sure you want to install firmware ' + r.tag_name + '? The dongle will download and restart automatically.')) {
+        return;
+      }
+
+      startOtaExecution(binUrl, r.tag_name);
+    }
+
+    async function installCustomOta() {
+      const url = document.getElementById('customOtaUrl').value.trim();
+      if (!url) {
+        alert('Please enter a valid firmware .bin URL.');
+        return;
+      }
+      if (!confirm('Install firmware from custom URL?\n' + url)) return;
+      startOtaExecution(url, 'Custom URL');
+    }
+
+    async function startOtaExecution(url, versionTag) {
+      document.getElementById('otaUpdateSection').style.display = 'none';
+      const progCard = document.getElementById('otaProgressCard');
+      progCard.style.display = 'block';
+      const statusText = document.getElementById('otaStatusText');
+      const bar = document.getElementById('otaProgressBar');
+
+      statusText.innerText = 'Starting installation of ' + versionTag + '...';
+      bar.style.width = '15%';
+
+      const token = localStorage.getItem('tv_remote_token') || '';
+      try {
+        const params = new URLSearchParams({ url: url, version: versionTag, token: token });
+        fetch('/api/ota/cloud_update', { method: 'POST', body: params });
+
+        let progress = 20;
+        const simTimer = setInterval(() => {
+          progress = Math.min(progress + 5, 90);
+          bar.style.width = progress + '%';
+          statusText.innerText = 'Dongle downloading & flashing ' + versionTag + '... (' + progress + '%)';
+        }, 1200);
+
+        setTimeout(() => {
+          clearInterval(simTimer);
+          bar.style.width = '100%';
+          statusText.innerText = 'Rebooting into new firmware! Reconnecting...';
+          setTimeout(() => { window.location.href = '/'; }, 6000);
+        }, 18000);
+
+      } catch (err) {
+        statusText.innerText = 'Error initiating update: ' + err.message;
+      }
     }
   </script>
 

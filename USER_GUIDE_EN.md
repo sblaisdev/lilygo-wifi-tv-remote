@@ -174,7 +174,38 @@ You can install the remote control as a standalone app on your smartphone withou
 
 ---
 
-## 7. Physical Button Functions & Factory Reset
+## 7. Over-The-Air (OTA) Firmware Updates
+
+You can update the LilyGO T-Dongle-S3 wirelessly from your smartphone, tablet, or laptop without needing any cables, Python, or developer tools.
+
+### Updating to the Latest Release:
+1. Open the Settings page at `http://tv-remote.local/setup`.
+2. Scroll to the **"Firmware & Updates"** section and tap **"🔍 Check for Updates on GitHub"**.
+3. The latest stable firmware release is automatically selected by default.
+4. Tap **"⚡ Install Selected Firmware"** and confirm.
+5. The dongle streams the new firmware over Wi-Fi, displays live progress on its 160×80 LCD, and automatically reboots.
+
+### Rolling Back to a Previous Version:
+If you ever need to return to an earlier firmware version:
+1. Tap **"Check for Updates on GitHub"**.
+2. Open the **"Select Firmware Version"** dropdown.
+3. Choose any previously published release (e.g. `v1.2.0`, `v1.1.0`).
+4. Tap **"Install"** to flash the selected build.
+
+### Test Device Mode (Beta / Pre-Releases):
+If you are developing or testing experimental features:
+1. Check the box **"Test Device Mode (Beta & Pre-releases)"**.
+2. When checking for updates, pre-releases and test builds will now appear in the dropdown labeled `🧪 [TEST]`.
+3. You can also paste any direct firmware link into the **"Custom Firmware URL"** field.
+
+### Offline / Manual Fallback:
+If you are traveling without Internet access or running in standalone AP mode:
+1. Download `firmware.bin` from GitHub Releases onto your phone or laptop.
+2. Under *"Manual Offline Firmware Upload"*, choose the `.bin` file and tap **"Upload & Flash .bin"**.
+
+---
+
+## 8. Physical Button Functions & Factory Reset
 
 The physical button located on the top of the T-Dongle-S3 has two functions:
 

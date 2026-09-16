@@ -24,6 +24,9 @@
 #include <ArduinoJson.h>
 #include "default_profile.h"
 #include "webpage.h"
+#include <Update.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
 
 
 
@@ -49,6 +52,7 @@ String opMode = "sta"; // "sta" = home Wi-Fi station, "ap" = standalone access p
 bool isApMode = false;
 bool isConfigured = false;
 bool authRequired = false; // User configurable device authorization toggle
+bool testDeviceMode = false; // Test Device Mode toggle (beta & pre-releases)
 
 // Hardware HMAC & Encryption Keys
 hmac_key_id_t hmacKeySlot = HMAC_KEY_MAX;
@@ -450,6 +454,7 @@ void connectToSavedWifi() {
   roomName = prefs.getString("room", DEFAULT_ROOM_NAME);
   mdnsHostname = prefs.getString("mdns", DEFAULT_MDNS_HOSTNAME);
   authRequired = prefs.getBool("auth_req", false);
+  testDeviceMode = prefs.getBool("test_dev", false);
   prefs.end();
 
   if (ssid.length() == 0) {
@@ -762,6 +767,108 @@ void showPairingSuccessScreen() {
   tft.drawString("Remote Active", 30, 52, 2);
 
   screenTimer = millis();
+}
+
+// =========================================================================
+// Over-The-Air (OTA) Display Functions & Cloud Update Engine
+// =========================================================================
+void showOtaProgressScreen(const String& label, int percent) {
+  screenOn = true;
+  digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
+  tft.fillScreen(TFT_BLACK);
+
+  tft.fillRect(0, 0, 160, 18, TFT_BLUE);
+  tft.setTextColor(TFT_WHITE, TFT_BLUE);
+  tft.drawString("FIRMWARE OTA", 24, 2, 2);
+
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString(label.substring(0, 15), 8, 24, 2);
+
+  // Draw progress bar outline (width: 144, height: 14)
+  tft.drawRect(8, 44, 144, 14, TFT_WHITE);
+  int fillW = (percent * 140) / 100;
+  if (fillW > 0) {
+    tft.fillRect(10, 46, fillW, 10, TFT_GREEN);
+  }
+
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawString(String(percent) + "% - Do not unplug!", 8, 62, 1);
+}
+
+void showOtaSuccessScreen(const String& label) {
+  screenOn = true;
+  digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
+  tft.fillScreen(TFT_BLACK);
+
+  tft.fillRect(0, 0, 160, 18, TFT_GREEN);
+  tft.setTextColor(TFT_BLACK, TFT_GREEN);
+  tft.drawString("UPDATE COMPLETE!", 12, 2, 2);
+
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString(label.substring(0, 15), 14, 28, 2);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString("Rebooting...", 32, 52, 2);
+}
+
+void showOtaErrorScreen(const String& err) {
+  screenOn = true;
+  digitalWrite(PIN_LCD_BL, LCD_BACKLIGHT_ON);
+  tft.fillScreen(TFT_BLACK);
+
+  tft.fillRect(0, 0, 160, 18, TFT_RED);
+  tft.setTextColor(TFT_WHITE, TFT_RED);
+  tft.drawString("UPDATE FAILED", 22, 2, 2);
+
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawString(err.substring(0, 18), 8, 30, 1);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("Continuing current OS", 10, 52, 1);
+}
+
+bool performCloudUpdate(const String& url, const String& versionTag) {
+  Serial.printf("[OTA] Starting cloud update to %s from URL: %s\n", versionTag.c_str(), url.c_str());
+  showOtaProgressScreen(versionTag, 0);
+
+  WiFiClientSecure client;
+  client.setInsecure(); // GitHub CDN redirect storage uses wildcard certificates
+
+  httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  httpUpdate.rebootOnUpdate(false);
+
+  httpUpdate.onProgress([versionTag](size_t current, size_t total) {
+    if (total > 0) {
+      int pct = (current * 100) / total;
+      static int lastPct = -1;
+      if (pct != lastPct) {
+        lastPct = pct;
+        showOtaProgressScreen(versionTag, pct);
+        Serial.printf("[OTA] Progress: %d%% (%u / %u bytes)\n", pct, current, total);
+      }
+    }
+  });
+
+  t_httpUpdate_return ret = httpUpdate.update(client, url);
+
+  switch (ret) {
+    case HTTP_UPDATE_FAILED:
+      Serial.printf("[OTA] HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+      showOtaErrorScreen(httpUpdate.getLastErrorString());
+      delay(4000);
+      updateScreenContent();
+      return false;
+
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("[OTA] HTTP_UPDATE_NO_UPDATES");
+      return false;
+
+    case HTTP_UPDATE_OK:
+      Serial.println("[OTA] HTTP_UPDATE_OK! Rebooting into new firmware...");
+      showOtaSuccessScreen(versionTag);
+      delay(2000);
+      ESP.restart();
+      return true;
+  }
+  return false;
 }
 
 // =========================================================================
@@ -1283,6 +1390,11 @@ void setupRoutes() {
     html.replace("%MODE_STA_SELECTED%", opMode == "ap" ? "" : "selected");
     html.replace("%MODE_AP_SELECTED%", opMode == "ap" ? "selected" : "");
     html.replace("%AUTH_CHECKED%", authRequired ? "checked" : "");
+    html.replace("%FIRMWARE_VERSION%", FIRMWARE_VERSION);
+    html.replace("%GITHUB_REPO%", GITHUB_REPO);
+    html.replace("%TEST_DEVICE_CHECKED%", testDeviceMode ? "checked" : "");
+    html.replace("%TEST_DEVICE_BADGE_DISPLAY%", testDeviceMode ? "block" : "none");
+    html.replace("%CUSTOM_URL_DISPLAY%", testDeviceMode ? "block" : "none");
 
     // Profile Options for Quick-Switcher
     String profileOpts = "";
@@ -1516,6 +1628,92 @@ void setupRoutes() {
       server.send(200, "text/plain", "OK");
     } else {
       server.send(400, "text/plain", "Missing key");
+    }
+  });
+
+  // ==========================================
+  // Over-The-Air (OTA) Firmware Update Endpoints
+  // ==========================================
+  server.on("/api/ota/config", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["version"] = FIRMWARE_VERSION;
+    doc["test_device"] = testDeviceMode;
+    doc["repo"] = GITHUB_REPO;
+    String out;
+    serializeJson(doc, out);
+    server.send(200, "application/json", out);
+  });
+
+  server.on("/api/ota/set_test_mode", HTTP_POST, []() {
+    if (server.hasArg("enabled")) {
+      testDeviceMode = (server.arg("enabled") == "1" || server.arg("enabled") == "true");
+      prefs.begin("tvremote", false);
+      prefs.putBool("test_dev", testDeviceMode);
+      prefs.end();
+      Serial.printf("[OTA] Test Device Mode: %s\n", testDeviceMode ? "ENABLED" : "DISABLED");
+      server.send(200, "application/json", "{\"status\":\"ok\",\"test_device\":" + String(testDeviceMode ? "true" : "false") + "}");
+    } else {
+      server.send(400, "application/json", "{\"error\":\"Missing enabled parameter\"}");
+    }
+  });
+
+  server.on("/api/ota/cloud_update", HTTP_POST, []() {
+    String token = server.hasArg("token") ? server.arg("token") : server.header("X-Auth-Token");
+    if (authRequired && !verifyDeviceToken(token)) {
+      server.send(401, "application/json", "{\"error\":\"Pairing authorization required to update firmware\"}");
+      return;
+    }
+    if (!server.hasArg("url")) {
+      server.send(400, "application/json", "{\"error\":\"Missing download URL\"}");
+      return;
+    }
+    String url = server.arg("url");
+    String ver = server.hasArg("version") ? server.arg("version") : "Update";
+
+    server.send(200, "application/json", "{\"status\":\"started\",\"version\":\"" + ver + "\"}");
+
+    // Perform the cloud update directly from GitHub
+    performCloudUpdate(url, ver);
+  });
+
+  // Manual Offline Firmware Upload (.bin) Handler
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    if (Update.hasError()) {
+      server.send(500, "text/plain", "Update Failed: " + String(Update.errorString()));
+    } else {
+      server.send(200, "text/html", "<html><head><meta http-equiv='refresh' content='5;url=/'></head><body style='background:#0f172a;color:#fff;font-family:sans-serif;text-align:center;padding:40px;'><h2>Update Successful!</h2><p>Firmware flashed successfully. Rebooting dongle now...</p></body></html>");
+      delay(1500);
+      ESP.restart();
+    }
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      Serial.printf("[OTA-Manual] Upload started: %s\n", upload.filename.c_str());
+      showOtaProgressScreen("Manual Upload", 0);
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      } else {
+        if (upload.totalSize > 0) {
+          int pct = (upload.currentSize * 100) / upload.totalSize;
+          showOtaProgressScreen("Manual Upload", pct);
+        }
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) {
+        Serial.printf("[OTA-Manual] Success: %u bytes\n", upload.totalSize);
+        showOtaSuccessScreen("Manual Upload");
+      } else {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_ABORTED) {
+      Update.end();
+      Serial.println("[OTA-Manual] Aborted");
+      updateScreenContent();
     }
   });
 }

@@ -26,4 +26,5 @@ Firmware for the **LilyGO T-Dongle-S3** (ESP32-S3) turning the USB dongle into a
 6. **PWA Ready**: Installable to iOS and Android home screens with a custom neon TV remote icon.
 7. **Fail-Safe Factory Reset**: 10-second button hold with two-step confirmation erases NVS flash while preserving hardware eFuses.
 8. **Universal Companion Studio & DuckyScript Macros**: An intuitive layout & macro designer companion app hosted on [GitHub Pages](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) (or locally in `docs/` and redirected from `/designer`) to visually build custom button grids and deploy automated keystroke macros directly via Wi-Fi, USB, or JSON export. Profiles are saved on-chip in LittleFS with automatic MicroSD card detection.
+9. **1-Click Cloud OTA & Test Device Channel**: Over-the-air firmware updates directly from GitHub Releases with zero developer stack needed. Features version selection with automatic rollback support, automated CI release binaries, offline manual .bin fallback, and a dedicated **Test Device Mode** toggle to test experimental and pre-release builds safely.
 

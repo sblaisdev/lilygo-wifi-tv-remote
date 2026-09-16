@@ -173,7 +173,38 @@ Vous pouvez installer la télécommande comme une véritable application sur vot
 
 ---
 
-## 7. Bouton physique et Réinitialisation d'usine
+## 7. Mises à jour du microprogramme sans fil (OTA)
+
+Vous pouvez mettre à jour le LilyGO T-Dongle-S3 sans fil depuis votre smartphone, tablette ou ordinateur, sans aucun câble USB ni outil de développement.
+
+### Mettre à jour vers la dernière version :
+1. Rendez-vous sur la page de configuration : `http://tv-remote.local/setup`.
+2. Allez dans la section **"Firmware & Updates"** et appuyez sur **"🔍 Check for Updates on GitHub"**.
+3. La dernière version stable est automatiquement sélectionnée par défaut.
+4. Appuyez sur **"⚡ Install Selected Firmware"** et confirmez.
+5. Le dongle télécharge le nouveau microprogramme en Wi-Fi, affiche la progression en temps réel sur son écran LCD 160×80 et redémarre automatiquement.
+
+### Revenir à une version antérieure (Rollback) :
+Si vous devez restaurer une ancienne version :
+1. Appuyez sur **"Check for Updates on GitHub"**.
+2. Déroulez le menu **"Select Firmware Version"**.
+3. Choisissez n'importe quelle version précédente (ex. `v1.2.0`, `v1.1.0`).
+4. Appuyez sur **"Install"** pour flasher cette version.
+
+### Mode Appareil de Test (Beta / Pré-versions) :
+Si vous testez des fonctionnalités expérimentales :
+1. Cochez **"Test Device Mode (Beta & Pre-releases)"**.
+2. Lors de la recherche de mises à jour, les pré-versions apparaîtront dans la liste avec le badge `🧪 [TEST]`.
+3. Vous pouvez également coller n'importe quel lien direct de fichier `.bin` dans le champ **"Custom Firmware URL"**.
+
+### Mode Hors-ligne / Téléversement manuel :
+En voyage ou sans connexion Internet :
+1. Téléchargez le fichier `firmware.bin` depuis GitHub Releases sur votre téléphone ou PC.
+2. Dans la section pliable *"Manual Offline Firmware Upload"*, sélectionnez le fichier `.bin` et appuyez sur **"Upload & Flash .bin"**.
+
+---
+
+## 8. Bouton physique et Réinitialisation d'usine
 
 
 Le bouton physique situé sur le dessus du T-Dongle-S3 propose deux modes de fonctionnement :
