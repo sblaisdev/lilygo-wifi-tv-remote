@@ -6,7 +6,7 @@
 #define DEFAULT_ROOM_NAME       "Living Room"
 #define DEFAULT_MDNS_HOSTNAME   "tv-remote"
 #define DEFAULT_AP_SSID         "TV-Remote-Setup"
-#define FIRMWARE_VERSION        "v1.3.0"
+#define FIRMWARE_VERSION        "v1.3.1-beta"
 #define GITHUB_REPO             "sblaisdev/t-dongle-s3-tv-remote"
 
 // ==========================================
