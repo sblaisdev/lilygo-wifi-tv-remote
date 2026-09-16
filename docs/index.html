@@ -11,7 +11,7 @@
 
   <!-- Notice Banner for GitHub Pages (HTTPS) -->
   <div class="notice-banner" id="httpsBanner" style="display: none;">
-    <span>
+    <span id="httpsBannerText" data-i18n="httpsBanner">
       🌐 <strong>Hosted on GitHub Pages (HTTPS)</strong>: Web browsers block direct Wi-Fi network calls to local HTTP devices. 
       Use <strong>"Export JSON"</strong> to upload via <a href="http://tv-remote.local/setup" target="_blank">tv-remote.local/setup</a>, or use <strong>"Deploy via USB"</strong>!
     </span>
@@ -23,24 +23,25 @@
     <div class="brand">
       <div class="brand-icon">&#x1F4F1;</div>
       <div>
-        <h1>LilyGO Remote Studio</h1>
-        <small style="color: var(--text-muted); font-size: 0.72rem;">Universal Layout &amp; DuckyScript Macro Designer</small>
+        <h1 id="studioTitle" data-i18n="studioTitle">LiLyGO Remote Studio</h1>
+        <small id="studioSubtitle" data-i18n="studioSubtitle" style="color: var(--text-muted); font-size: 0.72rem;">Universal Layout &amp; DuckyScript Macro Designer</small>
       </div>
     </div>
 
     <div class="header-controls">
       <div class="connection-bar">
         <span class="status-dot" id="connDot"></span>
-        <input type="text" id="targetHost" value="http://tv-remote.local" placeholder="Target IP or mDNS">
-        <button id="btnConnect" onclick="checkConnection()" style="padding: 4px 8px; font-size: 0.75rem;">Connect</button>
+        <input type="text" id="targetHost" value="http://tv-remote.local" placeholder="Target IP or mDNS" data-i18n-placeholder="targetHostPlaceholder">
+        <button id="btnConnect" onclick="checkConnection()" style="padding: 4px 8px; font-size: 0.75rem;" data-i18n="btnConnect">Connect</button>
       </div>
 
-      <button id="btnPair" onclick="openPairModal()" style="font-size: 0.8rem;">&#x1F512; Pair Dongle</button>
-      <button onclick="importProfile()" style="font-size: 0.8rem;">&#x1F4C2; Import JSON</button>
-      <button onclick="copyProfileJson()" style="font-size: 0.8rem;">&#x1F4CB; Copy JSON</button>
-      <button onclick="exportProfile()" style="font-size: 0.8rem;">&#x1F4BE; Export JSON</button>
-      <button id="btnUsbDeploy" onclick="deployViaUsb()" style="font-size: 0.8rem; background: #8b5cf6;">&#x26A1; USB Deploy</button>
-      <button class="primary" onclick="deployToDongle()" style="font-size: 0.8rem;">&#x1F680; Deploy over Wi-Fi</button>
+      <button id="btnPair" onclick="openPairModal()" style="font-size: 0.8rem;" data-i18n="btnPair">&#x1F512; Pair Dongle</button>
+      <button id="btnImport" onclick="importProfile()" style="font-size: 0.8rem;" data-i18n="btnImport">&#x1F4C2; Import JSON</button>
+      <button id="btnCopy" onclick="copyProfileJson()" style="font-size: 0.8rem;" data-i18n="btnCopy">&#x1F4CB; Copy JSON</button>
+      <button id="btnExport" onclick="exportProfile()" style="font-size: 0.8rem;" data-i18n="btnExport">&#x1F4BE; Export JSON</button>
+      <button id="btnUsbDeploy" onclick="deployViaUsb()" style="font-size: 0.8rem; background: #8b5cf6;" data-i18n="btnUsbDeploy">&#x26A1; USB Deploy</button>
+      <button id="btnWifiDeploy" class="primary" onclick="deployToDongle()" style="font-size: 0.8rem;" data-i18n="btnWifiDeploy">&#x1F680; Deploy over Wi-Fi</button>
+      <button id="btnLang" onclick="toggleLanguage()" style="font-size: 0.8rem; font-weight: bold; background: #334155; border: 1px solid #475569; border-radius: 8px; color: #fff; padding: 4px 10px; cursor: pointer;">🇫🇷 FR</button>
     </div>
   </header>
 
@@ -50,40 +51,40 @@
     <!-- Left Sidebar -->
     <aside class="sidebar-left">
       <div class="template-picker">
-        <div class="section-title">Load Template</div>
+        <div class="section-title" data-i18n="loadTemplate">Load Template</div>
         <select id="templateSelect" onchange="loadSelectedTemplate()">
-          <option value="">-- Choose a Preset Template --</option>
-          <option value="tv">Smart TV Remote</option>
-          <option value="pc">Windows PC &amp; Media Center</option>
-          <option value="mac">macOS Media &amp; Shortcuts</option>
-          <option value="android">Android / Google TV</option>
-          <option value="kodi">Kodi / Home Theater PC</option>
-          <option value="sysadmin">SysAdmin / Ducky Toolkit</option>
-          <option value="blank">Blank Layout (Custom)</option>
+          <option value="" data-i18n="optTplChoose">-- Choose a Preset Template --</option>
+          <option value="tv" data-i18n="optTplTv">Smart TV Remote</option>
+          <option value="pc" data-i18n="optTplPc">Windows PC &amp; Media Center</option>
+          <option value="mac" data-i18n="optTplMac">macOS Media &amp; Shortcuts</option>
+          <option value="android" data-i18n="optTplAndroid">Android / Google TV</option>
+          <option value="kodi" data-i18n="optTplKodi">Kodi / Home Theater PC</option>
+          <option value="sysadmin" data-i18n="optTplSysadmin">SysAdmin / Ducky Toolkit</option>
+          <option value="blank" data-i18n="optTplBlank">Blank Layout (Custom)</option>
         </select>
       </div>
 
       <hr style="border: none; border-top: 1px solid var(--panel-border);">
 
       <div class="form-group">
-        <div class="section-title">Profile Settings</div>
-        <label for="profileId">Profile ID (alphanumeric)</label>
+        <div class="section-title" data-i18n="profileSettings">Profile Settings</div>
+        <label for="profileId" data-i18n="profileId">Profile ID (alphanumeric)</label>
         <input type="text" id="profileId" class="form-input" value="custom-remote">
       </div>
 
       <div class="form-group">
-        <label for="profileName">Profile Name</label>
+        <label for="profileName" data-i18n="profileName">Profile Name</label>
         <input type="text" id="profileName" class="form-input" value="Custom Remote" oninput="updateProfileMeta()">
       </div>
 
       <div class="form-group">
-        <label for="profileDevice">Target Device</label>
+        <label for="profileDevice" data-i18n="profileDevice">Target Device</label>
         <select id="profileDevice" class="form-select" onchange="updateProfileMeta()">
-          <option value="tv">Smart TV</option>
-          <option value="pc">Windows PC</option>
-          <option value="mac">Apple Mac</option>
-          <option value="android">Android TV</option>
-          <option value="other">Universal Device</option>
+          <option value="tv" data-i18n="optDevTv">Smart TV</option>
+          <option value="pc" data-i18n="optDevPc">Windows PC</option>
+          <option value="mac" data-i18n="optDevMac">Apple Mac</option>
+          <option value="android" data-i18n="optDevAndroid">Android TV</option>
+          <option value="other" data-i18n="optDevOther">Universal Device</option>
         </select>
       </div>
 
@@ -91,20 +92,20 @@
 
       <div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span class="section-title" style="margin: 0;">Pages</span>
-          <button onclick="addNewPage()" style="padding: 2px 8px; font-size: 0.75rem;">+ Add Page</button>
+          <span class="section-title" style="margin: 0;" data-i18n="pagesTitle">Pages</span>
+          <button onclick="addNewPage()" style="padding: 2px 8px; font-size: 0.75rem;" data-i18n="btnAddPage">+ Add Page</button>
         </div>
         <div class="page-list" id="pagesList"></div>
       </div>
 
       <div class="form-group" style="margin-top: 6px;">
-        <label for="pageCols">Grid Columns for This Page</label>
+        <label for="pageCols" data-i18n="pageCols">Grid Columns for This Page</label>
         <select id="pageCols" class="form-select" onchange="updatePageCols()">
-          <option value="2">2 Columns</option>
-          <option value="3" selected>3 Columns (Default)</option>
-          <option value="4">4 Columns</option>
-          <option value="5">5 Columns</option>
-          <option value="6">6 Columns</option>
+          <option value="2" data-i18n="optCols2">2 Columns</option>
+          <option value="3" data-i18n="optCols3" selected>3 Columns (Default)</option>
+          <option value="4" data-i18n="optCols4">4 Columns</option>
+          <option value="5" data-i18n="optCols5">5 Columns</option>
+          <option value="6" data-i18n="optCols6">6 Columns</option>
         </select>
       </div>
     </aside>
@@ -112,11 +113,11 @@
     <!-- Center Stage: Phone Simulator -->
     <main class="stage-center">
       <div class="stage-toolbar">
-        <button onclick="addButtonToPage()">+ Add Button</button>
-        <button onclick="addSpacerToPage()">+ Add Spacer</button>
+        <button onclick="addButtonToPage()" data-i18n="btnAddButton">+ Add Button</button>
+        <button onclick="addSpacerToPage()" data-i18n="btnAddSpacer">+ Add Spacer</button>
         <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-left: 10px;">
           <input type="checkbox" id="liveTestToggle">
-          <span>&#x26A1; Live Test on Dongle</span>
+          <span data-i18n="liveTestDongle">&#x26A1; Live Test on Dongle</span>
         </label>
       </div>
 
@@ -126,7 +127,7 @@
         <div class="phone-screen">
           <div class="phone-header">
             <span id="simRoom">Living Room TV</span>
-            <span style="color: var(--accent-green);">&#x1F512; Encrypted</span>
+            <span style="color: var(--accent-green);" data-i18n="simEncrypted">&#x1F512; Encrypted</span>
           </div>
 
           <!-- Page Tabs Bar -->
@@ -140,70 +141,70 @@
 
     <!-- Right Sidebar: Inspector & Macro Builder -->
     <aside class="sidebar-right">
-      <div class="section-title">Button Inspector</div>
+      <div class="section-title" data-i18n="buttonInspector">Button Inspector</div>
 
-      <div id="noSelectionMsg" style="color: var(--text-muted); font-size: 0.85rem; padding: 20px 0; text-align: center;">
+      <div id="noSelectionMsg" style="color: var(--text-muted); font-size: 0.85rem; padding: 20px 0; text-align: center;" data-i18n="noSelectionMsg">
         Select any button or spacer on the phone screen to edit its properties and macros.
       </div>
 
       <div id="inspectorForm" style="display: none; display: flex; flex-direction: column; gap: 14px;">
         
         <div class="form-group">
-          <label>Action Type</label>
+          <label data-i18n="actionType">Action Type</label>
           <select id="btnAction" class="form-select" onchange="changeBtnAction()">
-            <option value="hid">Single HID Key (TV / PC Key)</option>
-            <option value="macro">DuckyScript Macro (Script)</option>
-            <option value="none">Empty Spacer</option>
+            <option value="hid" data-i18n="optActHid">Single HID Key (TV / PC Key)</option>
+            <option value="macro" data-i18n="optActMacro">DuckyScript Macro (Script)</option>
+            <option value="none" data-i18n="optActNone">Empty Spacer</option>
           </select>
         </div>
 
         <div id="btnVisualProps">
           <div class="form-group">
-            <label for="btnLabel">Button Label</label>
+            <label for="btnLabel" data-i18n="btnLabel">Button Label</label>
             <input type="text" id="btnLabel" class="form-input" oninput="updateSelectedBtn()">
           </div>
 
           <div class="form-group">
-            <label for="btnIcon">Icon / Symbol</label>
+            <label for="btnIcon" data-i18n="btnIcon">Icon / Symbol</label>
             <select id="btnIcon" class="form-select" onchange="updateSelectedBtn()">
-              <option value="">None (Label only)</option>
-              <option value="arrow-up">▲ Up</option>
-              <option value="arrow-down">▼ Down</option>
-              <option value="arrow-left">◀ Left</option>
-              <option value="arrow-right">▶ Right</option>
-              <option value="check">✔ Check / OK</option>
-              <option value="power">⏻ Power</option>
-              <option value="volume-2">🔊 Vol +</option>
-              <option value="volume-1">🔉 Vol -</option>
-              <option value="volume-x">🔇 Mute</option>
-              <option value="play">▶ Play</option>
-              <option value="pause">⏸ Pause</option>
-              <option value="skip-back">⏮ Prev Track</option>
-              <option value="skip-forward">⏭ Next Track</option>
-              <option value="home">🏠 Home</option>
-              <option value="corner-down-left">⏎ Back / Return</option>
-              <option value="lock">🔒 Lock</option>
-              <option value="terminal">▶_ Terminal</option>
-              <option value="monitor">🖥 Desktop / Monitor</option>
-              <option value="activity">📊 Task Manager</option>
-              <option value="video">🎥 YouTube / Video</option>
-              <option value="film">🎬 Netflix / Film</option>
-              <option value="search">🔍 Search</option>
+              <option value="" data-i18n="optIconNone">None (Label only)</option>
+              <option value="arrow-up" data-i18n="optIconUp">▲ Up</option>
+              <option value="arrow-down" data-i18n="optIconDown">▼ Down</option>
+              <option value="arrow-left" data-i18n="optIconLeft">◀ Left</option>
+              <option value="arrow-right" data-i18n="optIconRight">▶ Right</option>
+              <option value="check" data-i18n="optIconCheck">✔ Check / OK</option>
+              <option value="power" data-i18n="optIconPower">⏻ Power</option>
+              <option value="volume-2" data-i18n="optIconVolUp">🔊 Vol +</option>
+              <option value="volume-1" data-i18n="optIconVolDown">🔉 Vol -</option>
+              <option value="volume-x" data-i18n="optIconMute">🔇 Mute</option>
+              <option value="play" data-i18n="optIconPlay">▶ Play</option>
+              <option value="pause" data-i18n="optIconPause">⏸ Pause</option>
+              <option value="skip-back" data-i18n="optIconPrev">⏮ Prev Track</option>
+              <option value="skip-forward" data-i18n="optIconNext">⏭ Next Track</option>
+              <option value="home" data-i18n="optIconHome">🏠 Home</option>
+              <option value="corner-down-left" data-i18n="optIconBack">⏎ Back / Return</option>
+              <option value="lock" data-i18n="optIconLock">🔒 Lock</option>
+              <option value="terminal" data-i18n="optIconTerminal">▶_ Terminal</option>
+              <option value="monitor" data-i18n="optIconMonitor">🖥 Desktop / Monitor</option>
+              <option value="activity" data-i18n="optIconActivity">📊 Task Manager</option>
+              <option value="video" data-i18n="optIconVideo">🎥 YouTube / Video</option>
+              <option value="film" data-i18n="optIconFilm">🎬 Netflix / Film</option>
+              <option value="search" data-i18n="optIconSearch">🔍 Search</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="btnSpan">Grid Span (Width)</label>
+            <label for="btnSpan" data-i18n="btnSpan">Grid Span (Width)</label>
             <select id="btnSpan" class="form-select" onchange="updateSelectedBtn()">
-              <option value="1">1 Column (Standard)</option>
-              <option value="2">2 Columns (Wide)</option>
-              <option value="3">3 Columns (Full Width on 3-col)</option>
-              <option value="4">4 Columns (Full Width on 4-col)</option>
+              <option value="1" data-i18n="optSpan1">1 Column (Standard)</option>
+              <option value="2" data-i18n="optSpan2">2 Columns (Wide)</option>
+              <option value="3" data-i18n="optSpan3">3 Columns (Full Width on 3-col)</option>
+              <option value="4" data-i18n="optSpan4">4 Columns (Full Width on 4-col)</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Color Palette</label>
+            <label data-i18n="colorPalette">Color Palette</label>
             <div class="palette-row">
               <div class="color-swatch" style="background: #1e293b;" onclick="setBtnColor('#1e293b')"></div>
               <div class="color-swatch" style="background: #3b82f6;" onclick="setBtnColor('#3b82f6')"></div>
@@ -219,7 +220,7 @@
 
         <!-- HID Single Key Settings -->
         <div id="hidConfig" class="form-group">
-          <label for="hidKey">Target HID Key</label>
+          <label for="hidKey" data-i18n="hidKeyLabel">Target HID Key</label>
           <select id="hidKey" class="form-select" onchange="updateSelectedBtn()">
             <optgroup label="D-Pad &amp; Navigation">
               <option value="UP">UP Arrow</option>
@@ -268,39 +269,39 @@
         <!-- DuckyScript Macro Settings -->
         <div id="macroConfig" style="display: none;">
           <div class="macro-tabs">
-            <button class="macro-tab-btn active" id="tabBtnVisual" onclick="switchMacroTab('visual')">Visual Builder</button>
-            <button class="macro-tab-btn" id="tabBtnRaw" onclick="switchMacroTab('raw')">Raw DuckyScript</button>
+            <button class="macro-tab-btn active" id="tabBtnVisual" onclick="switchMacroTab('visual')" data-i18n="tabBtnVisual">Visual Builder</button>
+            <button class="macro-tab-btn" id="tabBtnRaw" onclick="switchMacroTab('raw')" data-i18n="tabBtnRaw">Raw DuckyScript</button>
           </div>
 
           <!-- Visual Macro Builder -->
           <div id="macroVisualPanel">
             <div id="macroStepsList"></div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
-              <button onclick="addMacroStep('string')" style="font-size: 0.75rem;">+ Type Text</button>
-              <button onclick="addMacroStep('combo')" style="font-size: 0.75rem;">+ Key Combo</button>
-              <button onclick="addMacroStep('delay')" style="font-size: 0.75rem;">+ Delay (ms)</button>
-              <button onclick="addMacroStep('enter')" style="font-size: 0.75rem;">+ Enter</button>
+              <button onclick="addMacroStep('string')" style="font-size: 0.75rem;" data-i18n="btnAddTypeText">+ Type Text</button>
+              <button onclick="addMacroStep('combo')" style="font-size: 0.75rem;" data-i18n="btnAddCombo">+ Key Combo</button>
+              <button onclick="addMacroStep('delay')" style="font-size: 0.75rem;" data-i18n="btnAddDelay">+ Delay (ms)</button>
+              <button onclick="addMacroStep('enter')" style="font-size: 0.75rem;" data-i18n="btnAddEnter">+ Enter</button>
             </div>
           </div>
 
           <!-- Raw DuckyScript Text Editor -->
           <div id="macroRawPanel" style="display: none;">
             <textarea id="rawDuckyEditor" class="raw-editor" placeholder="DELAY 200&#10;GUI r&#10;DELAY 150&#10;STRING cmd&#10;ENTER" oninput="onRawDuckyInput()"></textarea>
-            <small style="color: var(--text-muted); font-size: 0.72rem; display: block; margin-top: 4px;">
+            <small style="color: var(--text-muted); font-size: 0.72rem; display: block; margin-top: 4px;" data-i18n="rawDuckyHelp">
               Supports standard DuckyScript syntax: STRING, DELAY, GUI, CTRL, ALT, SHIFT, ENTER, REPEAT.
             </small>
           </div>
 
-          <button onclick="testCurrentMacro()" style="margin-top: 10px; width: 100%; justify-content: center; background: #8b5cf6;">
+          <button onclick="testCurrentMacro()" style="margin-top: 10px; width: 100%; justify-content: center; background: #8b5cf6;" data-i18n="btnTestMacro">
             &#x26A1; Test Macro Now
           </button>
         </div>
 
         <!-- Button Actions -->
         <div style="display: flex; gap: 8px; margin-top: 10px; border-top: 1px solid var(--panel-border); padding-top: 12px;">
-          <button onclick="moveBtn(-1)" style="flex: 1; justify-content: center;">◀ Move Up</button>
-          <button onclick="moveBtn(1)" style="flex: 1; justify-content: center;">Move Down ▶</button>
-          <button class="danger" onclick="deleteSelectedBtn()" style="justify-content: center;">Delete</button>
+          <button onclick="moveBtn(-1)" style="flex: 1; justify-content: center;" data-i18n="btnMoveUp">◀ Move Up</button>
+          <button onclick="moveBtn(1)" style="flex: 1; justify-content: center;" data-i18n="btnMoveDown">Move Down ▶</button>
+          <button class="danger" onclick="deleteSelectedBtn()" style="justify-content: center;" data-i18n="btnDelete">Delete</button>
         </div>
 
       </div>
@@ -312,14 +313,14 @@
   <div class="modal" id="pairModal">
     <div class="modal-content">
       <div style="font-size: 2.2rem; margin-bottom: 12px;">&#x1F512;</div>
-      <h3 style="margin-bottom: 8px;">Pair with LilyGO T-Dongle-S3</h3>
-      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4;">
+      <h3 style="margin-bottom: 8px;" data-i18n="pairModalTitle">Pair with LilyGO T-Dongle-S3</h3>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4;" data-i18n="pairModalDesc">
         To manage layouts and inject macros, click <strong>"Request Pairing"</strong> below, then <strong>press the physical button on the TV stick</strong> to approve.
       </p>
       <div id="pairModalStatus" style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 14px;"></div>
       <div style="display: flex; gap: 10px; justify-content: center;">
-        <button class="primary" onclick="initiatePairing()">Request Pairing</button>
-        <button onclick="closePairModal()">Cancel</button>
+        <button class="primary" onclick="initiatePairing()" data-i18n="btnRequestPairing">Request Pairing</button>
+        <button onclick="closePairModal()" data-i18n="btnCancel">Cancel</button>
       </div>
     </div>
   </div>

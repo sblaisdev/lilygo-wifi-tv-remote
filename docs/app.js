@@ -1,5 +1,5 @@
 // =========================================================================
-// LilyGO TV Remote & Macro Studio - Core Engine
+// LilyGO TV Remote & Macro Studio - Core Engine & Multilingual System
 // =========================================================================
 
 // Preset Templates
@@ -214,6 +214,319 @@ const TEMPLATES = {
   }
 };
 
+// =========================================================================
+// Internationalization (I18N)
+// =========================================================================
+const I18N = {
+  en: {
+    langBtn: "🇫🇷 FR",
+    httpsBanner: '🌐 <strong>Hosted on GitHub Pages (HTTPS)</strong>: Web browsers block direct Wi-Fi network calls to local HTTP devices. Use <strong>"Export JSON"</strong> to upload via <a href="http://tv-remote.local/setup" target="_blank">tv-remote.local/setup</a>, or use <strong>"Deploy via USB"</strong>!',
+    studioTitle: "LiLyGO Remote Studio",
+    studioSubtitle: "Universal Layout & DuckyScript Macro Designer",
+    targetHostPlaceholder: "Target IP or mDNS",
+    btnConnect: "Connect",
+    btnPair: "🔒 Pair Dongle",
+    btnImport: "📂 Import JSON",
+    btnCopy: "📋 Copy JSON",
+    btnExport: "💾 Export JSON",
+    btnUsbDeploy: "⚡ USB Deploy",
+    btnWifiDeploy: "🚀 Deploy over Wi-Fi",
+    loadTemplate: "Load Template",
+    optTplChoose: "-- Choose a Preset Template --",
+    optTplTv: "Smart TV Remote",
+    optTplPc: "Windows PC & Media Center",
+    optTplMac: "macOS Media & Shortcuts",
+    optTplAndroid: "Android / Google TV",
+    optTplKodi: "Kodi / Home Theater PC",
+    optTplSysadmin: "SysAdmin / Ducky Toolkit",
+    optTplBlank: "Blank Layout (Custom)",
+    profileSettings: "Profile Settings",
+    profileId: "Profile ID (alphanumeric)",
+    profileName: "Profile Name",
+    profileDevice: "Target Device",
+    optDevTv: "Smart TV",
+    optDevPc: "Windows PC",
+    optDevMac: "Apple Mac",
+    optDevAndroid: "Android TV",
+    optDevOther: "Universal Device",
+    pagesTitle: "Pages",
+    btnAddPage: "+ Add Page",
+    pageCols: "Grid Columns for This Page",
+    optCols2: "2 Columns",
+    optCols3: "3 Columns (Default)",
+    optCols4: "4 Columns",
+    optCols5: "5 Columns",
+    optCols6: "6 Columns",
+    btnAddButton: "+ Add Button",
+    btnAddSpacer: "+ Add Spacer",
+    liveTestDongle: "⚡ Live Test on Dongle",
+    simEncrypted: "🔒 Encrypted",
+    buttonInspector: "Button Inspector",
+    noSelectionMsg: "Select any button or spacer on the phone screen to edit its properties and macros.",
+    actionType: "Action Type",
+    optActHid: "Single HID Key (TV / PC Key)",
+    optActMacro: "DuckyScript Macro (Script)",
+    optActNone: "Empty Spacer",
+    btnLabel: "Button Label",
+    btnIcon: "Icon / Symbol",
+    optIconNone: "None (Label only)",
+    optIconUp: "▲ Up",
+    optIconDown: "▼ Down",
+    optIconLeft: "◀ Left",
+    optIconRight: "▶ Right",
+    optIconCheck: "✔ Check / OK",
+    optIconPower: "⏻ Power",
+    optIconVolUp: "🔊 Vol +",
+    optIconVolDown: "🔉 Vol -",
+    optIconMute: "🔇 Mute",
+    optIconPlay: "▶ Play",
+    optIconPause: "⏸ Pause",
+    optIconPrev: "⏮ Prev Track",
+    optIconNext: "⏭ Next Track",
+    optIconHome: "🏠 Home",
+    optIconBack: "⏎ Back / Return",
+    optIconLock: "🔒 Lock",
+    optIconTerminal: "▶_ Terminal",
+    optIconMonitor: "🖥 Desktop / Monitor",
+    optIconActivity: "📊 Task Manager",
+    optIconVideo: "🎥 YouTube / Video",
+    optIconFilm: "🎬 Netflix / Film",
+    optIconSearch: "🔍 Search",
+    btnSpan: "Grid Span (Width)",
+    optSpan1: "1 Column (Standard)",
+    optSpan2: "2 Columns (Wide)",
+    optSpan3: "3 Columns (Full Width on 3-col)",
+    optSpan4: "4 Columns (Full Width on 4-col)",
+    colorPalette: "Color Palette",
+    hidKeyLabel: "Target HID Key",
+    tabBtnVisual: "Visual Builder",
+    tabBtnRaw: "Raw DuckyScript",
+    btnAddTypeText: "+ Type Text",
+    btnAddCombo: "+ Key Combo",
+    btnAddDelay: "+ Delay (ms)",
+    btnAddEnter: "+ Enter",
+    rawDuckyHelp: "Supports standard DuckyScript syntax: STRING, DELAY, GUI, CTRL, ALT, SHIFT, ENTER, REPEAT.",
+    btnTestMacro: "⚡ Test Macro Now",
+    btnMoveUp: "◀ Move Up",
+    btnMoveDown: "Move Down ▶",
+    btnDelete: "Delete",
+    pairModalTitle: "Pair with LilyGO T-Dongle-S3",
+    pairModalDesc: 'To manage layouts and inject macros, click <strong>"Request Pairing"</strong> below, then <strong>press the physical button on the TV stick</strong> to approve.',
+    btnRequestPairing: "Request Pairing",
+    btnCancel: "Cancel",
+    spacer: "Spacer",
+    page: "Page",
+    rename: "Rename",
+    delete: "Delete",
+    enterPageName: "Enter page name:",
+    renamePagePrompt: "Rename page:",
+    deletePageConfirm: 'Delete page "{name}"?',
+    noActionsYet: "No actions yet. Click buttons below to add steps.",
+    typeTextPrompt: "Text to type automatically:",
+    keyComboPrompt: "Key combo (e.g. GUI r, CTRL SHIFT ESC, ALT F4):",
+    delayPrompt: "Delay milliseconds (e.g. 200):",
+    tplConfirm: 'Load preset template "{name}"? Current changes will be overwritten.',
+    profileImportSuccess: "Profile imported successfully!",
+    invalidProfileJson: "Invalid profile JSON structure.",
+    failParseJson: "Failed to parse JSON file: ",
+    copiedToast: "Profile JSON copied to clipboard! 📋",
+    copyPrompt: "Copy the profile JSON below:",
+    webSerialNotSupported: "WebSerial is not supported in this browser. Please open this page in Google Chrome or Microsoft Edge to deploy directly via USB.",
+    usbProfileSentToast: "🎉 Profile sent to LilyGO via USB!",
+    usbProfileSentAlert: '🎉 Profile "{name}" successfully sent to LilyGO over USB Serial!',
+    usbNotice: "USB Deploy notice: ",
+    httpsMixedContentAlert: '⚠️ HTTPS Mixed-Content Notice:\n\nBrowsers block direct Wi-Fi network requests from HTTPS sites (like GitHub Pages) to local HTTP devices.\n\nTo deploy to your dongle:\n1. Click "Export JSON" (or "Copy JSON").\n2. Open your dongle setup page (http://tv-remote.local/setup).\n3. Select the file in "Upload Profile JSON" and click Save.\n\nOr click "⚡ USB Deploy" to sync directly over USB!',
+    tokenNotFoundConfirm: "Pairing token not found. You must pair this companion studio with the LilyGO first. Open pairing dialog now?",
+    deploySuccessAlert: '🎉 Success! Profile "{name}" deployed and set as ACTIVE on the LilyGO!',
+    deployFailedAlert: "Deployment failed: ",
+    cannotConnectAlert: "Could not connect to LilyGO at {host}. Ensure you are on the same Wi-Fi network.",
+    pairRequestSent: "Request sent! Press the button on the LilyGO stick now...",
+    pairApproved: "Device Approved & Paired! 🎉",
+    pairTimedOut: "Pairing timed out. Try again.",
+    pairCannotContact: "Could not contact LilyGO at ",
+    connDotConnected: "Connected to LilyGO",
+  },
+  fr: {
+    langBtn: "🇬🇧 EN",
+    httpsBanner: '🌐 <strong>Hébergé sur GitHub Pages (HTTPS)</strong> : Les navigateurs bloquent les requêtes Wi-Fi directes vers les appareils HTTP locaux. Utilisez <strong>« Exporter JSON »</strong> pour importer via <a href="http://tv-remote.local/setup" target="_blank">tv-remote.local/setup</a>, ou utilisez <strong>« Déployer via USB »</strong> !',
+    studioTitle: "LiLyGO Remote Studio",
+    studioSubtitle: "Concepteur universel d'interfaces et de macros DuckyScript",
+    targetHostPlaceholder: "IP cible ou mDNS",
+    btnConnect: "Connecter",
+    btnPair: "🔒 Associer le dongle",
+    btnImport: "📂 Importer JSON",
+    btnCopy: "📋 Copier JSON",
+    btnExport: "💾 Exporter JSON",
+    btnUsbDeploy: "⚡ Déployer via USB",
+    btnWifiDeploy: "🚀 Déployer par Wi-Fi",
+    loadTemplate: "Modèles prédéfinis",
+    optTplChoose: "-- Choisir un modèle prédéfini --",
+    optTplTv: "Télécommande Smart TV",
+    optTplPc: "PC Windows & Centre Multimédia",
+    optTplMac: "macOS Multimédia & Raccourcis",
+    optTplAndroid: "Android / Google TV",
+    optTplKodi: "Kodi / PC Home Cinéma",
+    optTplSysadmin: "Boîte à outils SysAdmin / Ducky",
+    optTplBlank: "Disposition vierge (Personnalisée)",
+    profileSettings: "Paramètres du profil",
+    profileId: "Identifiant du profil (alphanumérique)",
+    profileName: "Nom du profil",
+    profileDevice: "Appareil cible",
+    optDevTv: "Smart TV",
+    optDevPc: "PC Windows",
+    optDevMac: "Apple Mac",
+    optDevAndroid: "Android TV",
+    optDevOther: "Appareil universel",
+    pagesTitle: "Pages",
+    btnAddPage: "+ Ajouter une page",
+    pageCols: "Colonnes de grille pour cette page",
+    optCols2: "2 colonnes",
+    optCols3: "3 colonnes (Par défaut)",
+    optCols4: "4 colonnes",
+    optCols5: "5 colonnes",
+    optCols6: "6 colonnes",
+    btnAddButton: "+ Ajouter un bouton",
+    btnAddSpacer: "+ Ajouter un espaceur",
+    liveTestDongle: "⚡ Test en direct sur le dongle",
+    simEncrypted: "🔒 Chiffré",
+    buttonInspector: "Inspecteur de bouton",
+    noSelectionMsg: "Sélectionnez un bouton ou un espaceur sur l'écran du téléphone pour modifier ses propriétés et macros.",
+    actionType: "Type d'action",
+    optActHid: "Touche HID unique (TV / PC)",
+    optActMacro: "Macro DuckyScript (Script)",
+    optActNone: "Espaceur vide",
+    btnLabel: "Texte du bouton",
+    btnIcon: "Icône / Symbole",
+    optIconNone: "Aucun (Texte seulement)",
+    optIconUp: "▲ Haut",
+    optIconDown: "▼ Bas",
+    optIconLeft: "◀ Gauche",
+    optIconRight: "▶ Droite",
+    optIconCheck: "✔ Valider / OK",
+    optIconPower: "⏻ Alimentation",
+    optIconVolUp: "🔊 Vol +",
+    optIconVolDown: "🔉 Vol -",
+    optIconMute: "🔇 Sourdine",
+    optIconPlay: "▶ Lecture",
+    optIconPause: "⏸ Pause",
+    optIconPrev: "⏮ Piste préc.",
+    optIconNext: "⏭ Piste suiv.",
+    optIconHome: "🏠 Accueil",
+    optIconBack: "⏎ Retour",
+    optIconLock: "🔒 Verrouiller",
+    optIconTerminal: "▶_ Terminal",
+    optIconMonitor: "🖥 Bureau / Écran",
+    optIconActivity: "📊 Gest. tâches",
+    optIconVideo: "🎥 YouTube / Vidéo",
+    optIconFilm: "🎬 Netflix / Film",
+    optIconSearch: "🔍 Recherche",
+    btnSpan: "Largeur de grille (Colonnes)",
+    optSpan1: "1 colonne (Standard)",
+    optSpan2: "2 colonnes (Large)",
+    optSpan3: "3 colonnes (Pleine largeur sur 3 col)",
+    optSpan4: "4 colonnes (Pleine largeur sur 4 col)",
+    colorPalette: "Palette de couleurs",
+    hidKeyLabel: "Touche HID cible",
+    tabBtnVisual: "Générateur visuel",
+    tabBtnRaw: "DuckyScript brut",
+    btnAddTypeText: "+ Taper du texte",
+    btnAddCombo: "+ Combinaison de touches",
+    btnAddDelay: "+ Délai (ms)",
+    btnAddEnter: "+ Entrée",
+    rawDuckyHelp: "Syntaxe DuckyScript supportée : STRING, DELAY, GUI, CTRL, ALT, SHIFT, ENTER, REPEAT.",
+    btnTestMacro: "⚡ Tester la macro",
+    btnMoveUp: "◀ Déplacer vers le haut",
+    btnMoveDown: "Déplacer vers le bas ▶",
+    btnDelete: "Supprimer",
+    pairModalTitle: "Associer avec LilyGO T-Dongle-S3",
+    pairModalDesc: "Pour gérer les dispositions et injecter des macros, cliquez sur <strong>« Demander l'association »</strong> ci-dessous, puis <strong>appuyez sur le bouton physique du dongle TV</strong> pour approuver.",
+    btnRequestPairing: "Demander l'association",
+    btnCancel: "Annuler",
+    spacer: "Espaceur",
+    page: "Page",
+    rename: "Renommer",
+    delete: "Supprimer",
+    enterPageName: "Nom de la nouvelle page :",
+    renamePagePrompt: "Renommer la page :",
+    deletePageConfirm: 'Supprimer la page « {name} » ?',
+    noActionsYet: "Aucune action configurée. Cliquez sur les boutons ci-dessous pour ajouter des étapes.",
+    typeTextPrompt: "Texte à saisir automatiquement :",
+    keyComboPrompt: "Combinaison de touches (ex. GUI r, CTRL SHIFT ESC, ALT F4) :",
+    delayPrompt: "Délai en millisecondes (ex. 200) :",
+    tplConfirm: 'Charger le modèle « {name} » ? Les modifications en cours seront écrasées.',
+    profileImportSuccess: "Profil importé avec succès !",
+    invalidProfileJson: "Structure JSON du profil non valide.",
+    failParseJson: "Échec de lecture du fichier JSON : ",
+    copiedToast: "JSON du profil copié dans le presse-papiers ! 📋",
+    copyPrompt: "Copiez le JSON du profil ci-dessous :",
+    webSerialNotSupported: "WebSerial n'est pas supporté par ce navigateur. Veuillez ouvrir cette page dans Google Chrome ou Microsoft Edge pour déployer directement via USB.",
+    usbProfileSentToast: "🎉 Profil envoyé au LilyGO via USB !",
+    usbProfileSentAlert: '🎉 Profil « {name} » envoyé avec succès au LilyGO par liaison série USB !',
+    usbNotice: "Notification de déploiement USB : ",
+    httpsMixedContentAlert: "⚠️ Avis de contenu mixte HTTPS :\n\nLes navigateurs bloquent les requêtes directes en Wi-Fi depuis un site HTTPS (comme GitHub Pages) vers des appareils HTTP locaux.\n\nPour déployer vers votre dongle :\n1. Cliquez sur « Exporter JSON » (ou « Copier JSON »).\n2. Ouvrez la page de configuration de votre dongle (http://tv-remote.local/setup).\n3. Sélectionnez le fichier dans « Upload Profile JSON » et cliquez sur Enregistrer.\n\nOu cliquez sur « ⚡ Déployer via USB » pour synchroniser directement via USB !",
+    tokenNotFoundConfirm: "Jeton d'association introuvable. Vous devez d'abord associer ce studio avec le LilyGO. Ouvrir la fenêtre d'association maintenant ?",
+    deploySuccessAlert: '🎉 Succès ! Le profil « {name} » a été déployé et activé sur le LilyGO !',
+    deployFailedAlert: "Échec du déploiement : ",
+    cannotConnectAlert: "Impossible de joindre le LilyGO à l'adresse {host}. Assurez-vous d'être connecté au même réseau Wi-Fi.",
+    pairRequestSent: "Demande envoyée ! Appuyez sur le bouton du dongle LilyGO maintenant...",
+    pairApproved: "Appareil approuvé et associé ! 🎉",
+    pairTimedOut: "Délai d'association dépassé. Réessayez.",
+    pairCannotContact: "Impossible de joindre le LilyGO à l'adresse ",
+    connDotConnected: "Connecté au LilyGO",
+  }
+};
+
+let currentLang = 'en';
+
+function t(key) {
+  return (I18N[currentLang] && I18N[currentLang][key]) || (I18N['en'] && I18N['en'][key]) || key;
+}
+
+function setLanguage(lang) {
+  if (!I18N[lang]) lang = 'en';
+  currentLang = lang;
+  localStorage.setItem('lilygo_studio_lang', lang);
+  document.documentElement.lang = lang;
+
+  const strings = I18N[lang];
+
+  // Update text & HTML of elements with data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (strings[key] !== undefined) {
+      if (strings[key].includes('<')) {
+        el.innerHTML = strings[key];
+      } else {
+        el.textContent = strings[key];
+      }
+    }
+  });
+
+  // Update placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (strings[key] !== undefined) {
+      el.placeholder = strings[key];
+    }
+  });
+
+  // Update language button label
+  const btnLang = document.getElementById('btnLang');
+  if (btnLang) {
+    btnLang.textContent = strings.langBtn;
+  }
+
+  // Refresh dynamic parts of UI
+  renderPagesList();
+  renderSimGrid();
+  renderInspector();
+}
+
+function toggleLanguage() {
+  const nextLang = currentLang === 'en' ? 'fr' : 'en';
+  setLanguage(nextLang);
+}
+
 // Current App State
 let profile = JSON.parse(JSON.stringify(TEMPLATES.tv));
 let currentPageIdx = 0;
@@ -225,6 +538,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const banner = document.getElementById('httpsBanner');
     if (banner) banner.style.display = 'flex';
   }
+
+  // Language Auto-Detection & Initialization
+  const pathIsFr = window.location.pathname.includes('/fr/') || window.location.pathname.endsWith('/fr');
+  const forcedDefault = window.DEFAULT_STUDIO_LANG || (pathIsFr ? 'fr' : null);
+  const savedLang = localStorage.getItem('lilygo_studio_lang');
+  const browserIsFr = navigator.language && navigator.language.toLowerCase().startsWith('fr');
+  const initialLang = forcedDefault || savedLang || (browserIsFr ? 'fr' : 'en');
+  setLanguage(initialLang);
 
   const saved = localStorage.getItem('lilygo_studio_profile');
   if (saved) {
@@ -263,16 +584,17 @@ function renderApp() {
 // Pages Management
 function renderPagesList() {
   const list = document.getElementById('pagesList');
+  if (!list) return;
   list.innerHTML = '';
 
   (profile.pages || []).forEach((p, idx) => {
     const item = document.createElement('div');
     item.className = 'page-item' + (idx === currentPageIdx ? ' active' : '');
     item.innerHTML = `
-      <span>${p.name || `Page ${idx + 1}`}</span>
+      <span>${escapeHtml(p.name || `${t('page')} ${idx + 1}`)}</span>
       <div style="display: flex; gap: 4px;">
-        <span onclick="renamePage(${idx}, event)" title="Rename" style="cursor: pointer; opacity: 0.7;">✎</span>
-        ${profile.pages.length > 1 ? `<span onclick="deletePage(${idx}, event)" title="Delete" style="cursor: pointer; opacity: 0.7; color: #ef4444;">✕</span>` : ''}
+        <span onclick="renamePage(${idx}, event)" title="${escapeHtml(t('rename'))}" style="cursor: pointer; opacity: 0.7;">✎</span>
+        ${profile.pages.length > 1 ? `<span onclick="deletePage(${idx}, event)" title="${escapeHtml(t('delete'))}" style="cursor: pointer; opacity: 0.7; color: #ef4444;">✕</span>` : ''}
       </div>
     `;
     item.onclick = () => {
@@ -284,15 +606,18 @@ function renderPagesList() {
   });
 
   const curPage = profile.pages[currentPageIdx] || profile.pages[0];
-  document.getElementById('pageCols').value = curPage.columns || profile.columns || 3;
+  const pageColsEl = document.getElementById('pageCols');
+  if (pageColsEl && curPage) {
+    pageColsEl.value = curPage.columns || profile.columns || 3;
+  }
 }
 
 function addNewPage() {
-  const name = prompt('Enter page name:', `Page ${profile.pages.length + 1}`);
+  const name = prompt(t('enterPageName'), `${t('page')} ${profile.pages.length + 1}`);
   if (!name) return;
   profile.pages.push({
     id: 'page-' + Date.now(),
-    name: name,
+    name: name.trim(),
     columns: 3,
     buttons: []
   });
@@ -304,7 +629,7 @@ function addNewPage() {
 function renamePage(idx, e) {
   e.stopPropagation();
   const current = profile.pages[idx].name;
-  const name = prompt('Rename page:', current);
+  const name = prompt(t('renamePagePrompt'), current);
   if (name && name.trim()) {
     profile.pages[idx].name = name.trim();
     renderApp();
@@ -314,7 +639,7 @@ function renamePage(idx, e) {
 function deletePage(idx, e) {
   e.stopPropagation();
   if (profile.pages.length <= 1) return;
-  if (!confirm(`Delete page "${profile.pages[idx].name}"?`)) return;
+  if (!confirm(t('deletePageConfirm').replace('{name}', profile.pages[idx].name))) return;
   profile.pages.splice(idx, 1);
   if (currentPageIdx >= profile.pages.length) currentPageIdx = profile.pages.length - 1;
   selectedBtnIdx = null;
@@ -341,6 +666,7 @@ function updateProfileMeta() {
 // Phone Simulation Tabs & Grid
 function renderSimTabs() {
   const tabs = document.getElementById('simTabs');
+  if (!tabs) return;
   tabs.innerHTML = '';
   if (profile.pages.length <= 1) {
     tabs.style.display = 'none';
@@ -350,7 +676,7 @@ function renderSimTabs() {
   profile.pages.forEach((p, idx) => {
     const pill = document.createElement('div');
     pill.className = 'tab-pill' + (idx === currentPageIdx ? ' active' : '');
-    pill.innerText = p.name || `Page ${idx + 1}`;
+    pill.innerText = p.name || `${t('page')} ${idx + 1}`;
     pill.onclick = () => {
       currentPageIdx = idx;
       selectedBtnIdx = null;
@@ -362,6 +688,7 @@ function renderSimTabs() {
 
 function renderSimGrid() {
   const grid = document.getElementById('simGrid');
+  if (!grid) return;
   const curPage = profile.pages[currentPageIdx] || profile.pages[0];
   const cols = curPage.columns || profile.columns || 3;
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -372,7 +699,7 @@ function renderSimGrid() {
       const sp = document.createElement('div');
       sp.className = 'sim-spacer' + (idx === selectedBtnIdx ? ' selected' : '');
       if (b.span) sp.style.gridColumn = `span ${b.span}`;
-      sp.innerText = 'Spacer';
+      sp.innerText = t('spacer');
       sp.onclick = () => selectButton(idx);
       grid.appendChild(sp);
       return;
@@ -385,7 +712,7 @@ function renderSimGrid() {
 
     let content = '';
     if (b.icon) content += `<span class="sim-btn-icon">${getIconSymbol(b.icon)}</span>`;
-    if (b.label) content += `<span class="sim-btn-label">${b.label}</span>`;
+    if (b.label) content += `<span class="sim-btn-label">${escapeHtml(b.label)}</span>`;
     el.innerHTML = content || '&bull;';
 
     el.onclick = () => {
@@ -435,6 +762,7 @@ function addSpacerToPage() {
 function renderInspector() {
   const noSel = document.getElementById('noSelectionMsg');
   const form = document.getElementById('inspectorForm');
+  if (!noSel || !form) return;
   const curPage = profile.pages[currentPageIdx];
 
   if (selectedBtnIdx === null || !curPage || !curPage.buttons[selectedBtnIdx]) {
@@ -561,11 +889,12 @@ function onRawDuckyInput() {
 
 function renderMacroSteps(script) {
   const container = document.getElementById('macroStepsList');
+  if (!container) return;
   container.innerHTML = '';
   const lines = script.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('REM'));
 
   if (lines.length === 0) {
-    container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.75rem; padding: 6px 0;">No actions yet. Click buttons below to add steps.</div>';
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.75rem; padding: 6px 0;">${escapeHtml(t('noActionsYet'))}</div>`;
     return;
   }
 
@@ -577,7 +906,7 @@ function renderMacroSteps(script) {
         <span style="font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;">#${idx + 1}</span>
         <span style="font-family: monospace; font-size: 0.8rem; color: #fff;">${escapeHtml(line)}</span>
       </div>
-      <button onclick="removeMacroStep(${idx})" style="padding: 2px 6px; font-size: 0.7rem; color: #ef4444; border: none; background: none;">✕</button>
+      <button onclick="removeMacroStep(${idx})" style="padding: 2px 6px; font-size: 0.7rem; color: #ef4444; border: none; background: none; cursor: pointer;">✕</button>
     `;
     container.appendChild(item);
   });
@@ -586,15 +915,15 @@ function renderMacroSteps(script) {
 function addMacroStep(type) {
   let line = '';
   if (type === 'string') {
-    const text = prompt('Text to type automatically:');
+    const text = prompt(t('typeTextPrompt'));
     if (text === null) return;
     line = 'STRING ' + text;
   } else if (type === 'combo') {
-    const combo = prompt('Key combo (e.g. GUI r, CTRL SHIFT ESC, ALT F4):', 'GUI r');
+    const combo = prompt(t('keyComboPrompt'), 'GUI r');
     if (!combo) return;
     line = combo.trim().toUpperCase();
   } else if (type === 'delay') {
-    const ms = prompt('Delay milliseconds (e.g. 200):', '200');
+    const ms = prompt(t('delayPrompt'), '200');
     if (!ms) return;
     line = 'DELAY ' + parseInt(ms, 10);
   } else if (type === 'enter') {
@@ -621,7 +950,7 @@ function loadSelectedTemplate() {
   const sel = document.getElementById('templateSelect');
   const key = sel.value;
   if (!key || !TEMPLATES[key]) return;
-  if (!confirm('Load preset template "' + sel.options[sel.selectedIndex].text + '"? Current changes will be overwritten.')) return;
+  if (!confirm(t('tplConfirm').replace('{name}', sel.options[sel.selectedIndex].text))) return;
 
   profile = JSON.parse(JSON.stringify(TEMPLATES[key]));
   currentPageIdx = 0;
@@ -656,12 +985,12 @@ function onFileSelected(e) {
         currentPageIdx = 0;
         selectedBtnIdx = null;
         renderApp();
-        alert('Profile imported successfully!');
+        alert(t('profileImportSuccess'));
       } else {
-        alert('Invalid profile JSON structure.');
+        alert(t('invalidProfileJson'));
       }
     } catch (err) {
-      alert('Failed to parse JSON file: ' + err.message);
+      alert(t('failParseJson') + err.message);
     }
   };
   reader.readAsText(file);
@@ -678,11 +1007,12 @@ function getTargetHost() {
 async function checkConnection() {
   const host = getTargetHost();
   const dot = document.getElementById('connDot');
+  if (!dot) return;
   try {
     const res = await fetch(`${host}/api/profiles`, { method: 'GET', mode: 'cors' });
     if (res.ok) {
       dot.className = 'status-dot connected';
-      dot.title = 'Connected to LilyGO';
+      dot.title = t('connDotConnected');
     } else {
       dot.className = 'status-dot';
     }
@@ -691,7 +1021,7 @@ async function checkConnection() {
   }
 }
 
-// Deploy over Wi-Fi
+// Toast notification
 function showToast(msg) {
   const toast = document.getElementById('toast');
   if (!toast) return;
@@ -704,18 +1034,18 @@ function copyProfileJson() {
   const jsonStr = JSON.stringify(profile, null, 2);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(jsonStr).then(() => {
-      showToast('Profile JSON copied to clipboard! 📋');
+      showToast(t('copiedToast'));
     }).catch(err => {
-      prompt('Copy the profile JSON below:', jsonStr);
+      prompt(t('copyPrompt'), jsonStr);
     });
   } else {
-    prompt('Copy the profile JSON below:', jsonStr);
+    prompt(t('copyPrompt'), jsonStr);
   }
 }
 
 async function deployViaUsb() {
   if (!('serial' in navigator)) {
-    alert('WebSerial is not supported in this browser. Please open this page in Google Chrome or Microsoft Edge to deploy directly via USB.');
+    alert(t('webSerialNotSupported'));
     return;
   }
   try {
@@ -730,11 +1060,11 @@ async function deployViaUsb() {
     writer.releaseLock();
     await port.close();
     
-    showToast('🎉 Profile sent to LilyGO via USB!');
-    alert(`🎉 Profile "${profile.name}" successfully sent to LilyGO over USB Serial!`);
+    showToast(t('usbProfileSentToast'));
+    alert(t('usbProfileSentAlert').replace('{name}', profile.name));
   } catch (err) {
     if (err.name !== 'NotFoundError') {
-      alert('USB Deploy notice: ' + err.message);
+      alert(t('usbNotice') + err.message);
     }
   }
 }
@@ -743,22 +1073,14 @@ async function deployToDongle() {
   const host = getTargetHost();
 
   if (window.location.protocol === 'https:' && host.startsWith('http://')) {
-    alert(
-      '⚠️ HTTPS Mixed-Content Notice:\n\n' +
-      'Browsers block direct Wi-Fi network requests from HTTPS sites (like GitHub Pages) to local HTTP devices.\n\n' +
-      'To deploy to your dongle:\n' +
-      '1. Click "Export JSON" (or "Copy JSON").\n' +
-      '2. Open your dongle setup page (http://tv-remote.local/setup).\n' +
-      '3. Select the file in "Upload Profile JSON" and click Save.\n\n' +
-      'Or click "⚡ USB Deploy" to sync directly over USB!'
-    );
+    alert(t('httpsMixedContentAlert'));
     return;
   }
 
   const token = localStorage.getItem('tv_remote_token') || '';
 
   if (!token) {
-    if (confirm('Pairing token not found. You must pair this companion studio with the LilyGO first. Open pairing dialog now?')) {
+    if (confirm(t('tokenNotFoundConfirm'))) {
       openPairModal();
     }
     return;
@@ -773,12 +1095,12 @@ async function deployToDongle() {
     });
     const data = await res.json();
     if (data.status === 'ok') {
-      alert(`🎉 Success! Profile "${profile.name}" deployed and set as ACTIVE on the LilyGO!`);
+      alert(t('deploySuccessAlert').replace('{name}', profile.name));
     } else {
-      alert('Deployment failed: ' + (data.error || 'Pairing token rejected. Re-pair device.'));
+      alert(t('deployFailedAlert') + (data.error || 'Pairing token rejected. Re-pair device.'));
     }
   } catch (e) {
-    alert(`Could not connect to LilyGO at ${host}. Ensure you are on the same Wi-Fi network.`);
+    alert(t('cannotConnectAlert').replace('{host}', host));
   }
 }
 
@@ -831,7 +1153,7 @@ async function initiatePairing() {
   const host = getTargetHost();
   const devId = 'studio-' + Math.random().toString(16).substr(2, 8);
   const statusEl = document.getElementById('pairModalStatus');
-  statusEl.innerText = 'Request sent! Press the button on the LilyGO stick now...';
+  statusEl.innerText = t('pairRequestSent');
 
   try {
     await fetch(`${host}/api/pair_request?device=${devId}`, { method: 'POST', mode: 'cors' });
@@ -844,19 +1166,19 @@ async function initiatePairing() {
         if (data.status === 'approved' && data.token) {
           clearInterval(pairPollTimer);
           localStorage.setItem('tv_remote_token', data.token);
-          statusEl.innerText = 'Device Approved & Paired! 🎉';
+          statusEl.innerText = t('pairApproved');
           checkConnection();
           setTimeout(closePairModal, 1500);
         } else if (data.status === 'expired') {
           clearInterval(pairPollTimer);
-          statusEl.innerText = 'Pairing timed out. Try again.';
+          statusEl.innerText = t('pairTimedOut');
         }
       } catch (err) {
         // continue polling
       }
     }, 1000);
   } catch (e) {
-    statusEl.innerText = 'Could not contact LilyGO at ' + host;
+    statusEl.innerText = t('pairCannotContact') + host;
   }
 }
 
@@ -891,5 +1213,6 @@ function getIconSymbol(icon) {
 }
 
 function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

@@ -1,5 +1,9 @@
 # 📺 LiLyGO Wi-Fi TV Remote
 
+<p align="center">
+  <b>🇬🇧 English</b> | <a href="README.fr.md">🇫🇷 Français</a>
+</p>
+
 Turn your smartphone into a fast, responsive remote control and wireless keyboard for your Smart TV, streaming box, or PC—powered by the pocket-sized **LilyGO T-Dongle-S3** USB stick.
 
 <p align="center">
