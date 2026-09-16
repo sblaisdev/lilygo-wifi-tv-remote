@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="../icon.svg">
   <link rel="stylesheet" href="../style.css">
 </head>
-<body>
+<body class="mode-simple">
 
   <!-- Notice Banner for GitHub Pages (HTTPS) -->
   <div class="notice-banner" id="httpsBanner" style="display: none;">
@@ -29,18 +29,31 @@
     </div>
 
     <div class="header-controls">
+      <!-- Mode Switcher (Simple vs. Advanced) -->
+      <div class="mode-switch-group">
+        <button id="btnModeSimple" class="mode-switch-btn active" onclick="setMode('simple')" data-i18n="btnModeSimple">⚡ Simple</button>
+        <button id="btnModeAdvanced" class="mode-switch-btn" onclick="setMode('advanced')" data-i18n="btnModeAdvanced">🛠️ Avancé</button>
+      </div>
+
+      <!-- Connection Bar -->
       <div class="connection-bar">
         <span class="status-dot" id="connDot"></span>
         <input type="text" id="targetHost" value="http://tv-remote.local" placeholder="IP cible ou mDNS" data-i18n-placeholder="targetHostPlaceholder">
         <button id="btnConnect" onclick="checkConnection()" style="padding: 4px 8px; font-size: 0.75rem;" data-i18n="btnConnect">Connecter</button>
       </div>
 
-      <button id="btnPair" onclick="openPairModal()" style="font-size: 0.8rem;" data-i18n="btnPair">&#x1F512; Associer le dongle</button>
-      <button id="btnImport" onclick="importProfile()" style="font-size: 0.8rem;" data-i18n="btnImport">&#x1F4C2; Importer JSON</button>
-      <button id="btnCopy" onclick="copyProfileJson()" style="font-size: 0.8rem;" data-i18n="btnCopy">&#x1F4CB; Copier JSON</button>
-      <button id="btnExport" onclick="exportProfile()" style="font-size: 0.8rem;" data-i18n="btnExport">&#x1F4BE; Exporter JSON</button>
-      <button id="btnUsbDeploy" onclick="deployViaUsb()" style="font-size: 0.8rem; background: #8b5cf6;" data-i18n="btnUsbDeploy">&#x26A1; Déployer via USB</button>
-      <button id="btnWifiDeploy" class="primary" onclick="deployToDongle()" style="font-size: 0.8rem;" data-i18n="btnWifiDeploy">&#x1F680; Déployer par Wi-Fi</button>
+      <!-- Primary Simple Actions -->
+      <button id="btnLoadDongle" onclick="loadFromDongle()" style="font-size: 0.8rem; background: #0284c7;" data-i18n="btnLoadDongle">📥 Charger depuis le LilyGO</button>
+      <button id="btnWifiDeploy" class="primary" onclick="deployToDongle()" style="font-size: 0.8rem;" data-i18n="btnWifiDeploy">🚀 Enregistrer sur le LilyGO</button>
+
+      <!-- Advanced Mode Tools -->
+      <button id="btnPair" class="advanced-only" onclick="openPairModal()" style="font-size: 0.8rem;" data-i18n="btnPair">&#x1F512; Associer le dongle</button>
+      <button id="btnImport" class="advanced-only" onclick="importProfile()" style="font-size: 0.8rem;" data-i18n="btnImport">&#x1F4C2; Importer JSON</button>
+      <button id="btnCopy" class="advanced-only" onclick="copyProfileJson()" style="font-size: 0.8rem;" data-i18n="btnCopy">&#x1F4CB; Copier JSON</button>
+      <button id="btnExport" class="advanced-only" onclick="exportProfile()" style="font-size: 0.8rem;" data-i18n="btnExport">&#x1F4BE; Exporter JSON</button>
+      <button id="btnUsbDeploy" class="advanced-only" onclick="deployViaUsb()" style="font-size: 0.8rem; background: #8b5cf6;" data-i18n="btnUsbDeploy">&#x26A1; Déployer via USB</button>
+
+      <!-- Language Toggle -->
       <button id="btnLang" onclick="toggleLanguage()" style="font-size: 0.8rem; font-weight: bold; background: #334155; border: 1px solid #475569; border-radius: 8px; color: #fff; padding: 4px 10px; cursor: pointer;">🇬🇧 EN</button>
     </div>
   </header>
@@ -54,41 +67,49 @@
         <div class="section-title" data-i18n="loadTemplate">Modèles prédéfinis</div>
         <select id="templateSelect" onchange="loadSelectedTemplate()">
           <option value="" data-i18n="optTplChoose">-- Choisir un modèle prédéfini --</option>
-          <option value="tv" data-i18n="optTplTv">Télécommande Smart TV</option>
-          <option value="pc" data-i18n="optTplPc">PC Windows &amp; Centre Multimédia</option>
-          <option value="mac" data-i18n="optTplMac">macOS Multimédia &amp; Raccourcis</option>
-          <option value="android" data-i18n="optTplAndroid">Android / Google TV</option>
-          <option value="kodi" data-i18n="optTplKodi">Kodi / PC Home Cinéma</option>
-          <option value="sysadmin" data-i18n="optTplSysadmin">Boîte à outils SysAdmin / Ducky</option>
-          <option value="blank" data-i18n="optTplBlank">Disposition vierge (Personnalisée)</option>
+          <optgroup label="Enregistrés sur le LilyGO" id="optGroupSaved" data-i18n-label="optGroupSaved">
+            <!-- Dynamiquement peuplé -->
+          </optgroup>
+          <optgroup label="Modèles par défaut" id="optGroupDefaults" data-i18n-label="optGroupDefaults">
+            <option value="tv" data-i18n="optTplTv">Télécommande Smart TV</option>
+            <option value="pc" data-i18n="optTplPc">PC Windows &amp; Centre Multimédia</option>
+            <option value="mac" data-i18n="optTplMac">macOS Multimédia &amp; Raccourcis</option>
+            <option value="android" data-i18n="optTplAndroid">Android / Google TV</option>
+            <option value="kodi" data-i18n="optTplKodi">Kodi / PC Home Cinéma</option>
+            <option value="sysadmin" data-i18n="optTplSysadmin">Boîte à outils SysAdmin / Ducky</option>
+            <option value="blank" data-i18n="optTplBlank">Disposition vierge (Personnalisée)</option>
+          </optgroup>
         </select>
       </div>
 
-      <hr style="border: none; border-top: 1px solid var(--panel-border);">
+      <!-- Advanced Profile Settings -->
+      <div class="advanced-only" id="profileSettingsGroup">
+        <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 14px 0;">
 
-      <div class="form-group">
-        <div class="section-title" data-i18n="profileSettings">Paramètres du profil</div>
-        <label for="profileId" data-i18n="profileId">Identifiant du profil (alphanumérique)</label>
-        <input type="text" id="profileId" class="form-input" value="custom-remote">
+        <div class="form-group">
+          <div class="section-title" data-i18n="profileSettings">Paramètres du profil</div>
+          <label for="profileId" data-i18n="profileId">Identifiant du profil (alphanumérique)</label>
+          <input type="text" id="profileId" class="form-input" value="custom-remote">
+        </div>
+
+        <div class="form-group">
+          <label for="profileName" data-i18n="profileName">Nom du profil</label>
+          <input type="text" id="profileName" class="form-input" value="Custom Remote" oninput="updateProfileMeta()">
+        </div>
+
+        <div class="form-group">
+          <label for="profileDevice" data-i18n="profileDevice">Appareil cible</label>
+          <select id="profileDevice" class="form-select" onchange="updateProfileMeta()">
+            <option value="tv" data-i18n="optDevTv">Smart TV</option>
+            <option value="pc" data-i18n="optDevPc">PC Windows</option>
+            <option value="mac" data-i18n="optDevMac">Apple Mac</option>
+            <option value="android" data-i18n="optDevAndroid">Android TV</option>
+            <option value="other" data-i18n="optDevOther">Appareil universel</option>
+          </select>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="profileName" data-i18n="profileName">Nom du profil</label>
-        <input type="text" id="profileName" class="form-input" value="Custom Remote" oninput="updateProfileMeta()">
-      </div>
-
-      <div class="form-group">
-        <label for="profileDevice" data-i18n="profileDevice">Appareil cible</label>
-        <select id="profileDevice" class="form-select" onchange="updateProfileMeta()">
-          <option value="tv" data-i18n="optDevTv">Smart TV</option>
-          <option value="pc" data-i18n="optDevPc">PC Windows</option>
-          <option value="mac" data-i18n="optDevMac">Apple Mac</option>
-          <option value="android" data-i18n="optDevAndroid">Android TV</option>
-          <option value="other" data-i18n="optDevOther">Appareil universel</option>
-        </select>
-      </div>
-
-      <hr style="border: none; border-top: 1px solid var(--panel-border);">
+      <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 14px 0;">
 
       <div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -98,7 +119,7 @@
         <div class="page-list" id="pagesList"></div>
       </div>
 
-      <div class="form-group" style="margin-top: 6px;">
+      <div class="form-group advanced-only" id="pageColsGroup" style="margin-top: 10px;">
         <label for="pageCols" data-i18n="pageCols">Colonnes de grille pour cette page</label>
         <select id="pageCols" class="form-select" onchange="updatePageCols()">
           <option value="2" data-i18n="optCols2">2 colonnes</option>
@@ -191,6 +212,19 @@
               <option value="film" data-i18n="optIconFilm">🎬 Netflix / Film</option>
               <option value="search" data-i18n="optIconSearch">🔍 Recherche</option>
             </select>
+
+            <!-- Custom Image Icon Importer (Advanced Mode) -->
+            <div class="advanced-only" style="margin-top: 8px;">
+              <input type="file" id="customIconInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display: none;" onchange="onCustomIconSelected(event)">
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" onclick="document.getElementById('customIconInput').click()" style="flex: 1; font-size: 0.75rem; justify-content: center;" data-i18n="btnImportCustomIcon">🖼️ Importer une image</button>
+                <button type="button" id="btnClearCustomIcon" onclick="clearCustomIcon()" class="danger" style="display: none; padding: 4px 8px; font-size: 0.75rem;" title="Effacer l'icône">✕</button>
+              </div>
+              <div id="customIconPreviewWrap" class="custom-icon-preview-wrap" style="display: none;">
+                <img id="customIconPreview" class="custom-icon-thumb" src="" alt="Aperçu">
+                <small style="color: var(--text-muted); font-size: 0.72rem;" data-i18n="customIconLoaded">Image personnalisée chargée</small>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">

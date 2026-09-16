@@ -220,19 +220,24 @@ const TEMPLATES = {
 const I18N = {
   en: {
     langBtn: "🇫🇷 FR",
+    btnModeSimple: "⚡ Simple",
+    btnModeAdvanced: "🛠️ Advanced",
     httpsBanner: '🌐 <strong>Hosted on GitHub Pages (HTTPS)</strong>: Web browsers block direct Wi-Fi network calls to local HTTP devices. Use <strong>"Export JSON"</strong> to upload via <a href="http://tv-remote.local/setup" target="_blank">tv-remote.local/setup</a>, or use <strong>"Deploy via USB"</strong>!',
     studioTitle: "LiLyGO Remote Studio",
     studioSubtitle: "Universal Layout & DuckyScript Macro Designer",
     targetHostPlaceholder: "Target IP or mDNS",
     btnConnect: "Connect",
+    btnLoadDongle: "📥 Load from LilyGO",
+    btnWifiDeploy: "🚀 Save to LilyGO",
     btnPair: "🔒 Pair Dongle",
     btnImport: "📂 Import JSON",
     btnCopy: "📋 Copy JSON",
     btnExport: "💾 Export JSON",
     btnUsbDeploy: "⚡ USB Deploy",
-    btnWifiDeploy: "🚀 Deploy over Wi-Fi",
     loadTemplate: "Load Template",
     optTplChoose: "-- Choose a Preset Template --",
+    optGroupSaved: "Saved on LilyGO",
+    optGroupDefaults: "Default Templates",
     optTplTv: "Smart TV Remote",
     optTplPc: "Windows PC & Media Center",
     optTplMac: "macOS Media & Shortcuts",
@@ -292,6 +297,8 @@ const I18N = {
     optIconVideo: "🎥 YouTube / Video",
     optIconFilm: "🎬 Netflix / Film",
     optIconSearch: "🔍 Search",
+    btnImportCustomIcon: "🖼️ Import Image Icon",
+    customIconLoaded: "Custom image loaded",
     btnSpan: "Grid Span (Width)",
     optSpan1: "1 Column (Standard)",
     optSpan2: "2 Columns (Wide)",
@@ -345,22 +352,30 @@ const I18N = {
     pairTimedOut: "Pairing timed out. Try again.",
     pairCannotContact: "Could not contact LilyGO at ",
     connDotConnected: "Connected to LilyGO",
+    loadingFromDongle: "Fetching active layout from LilyGO...",
+    loadSuccessToast: "Active profile loaded from LilyGO! 🎉",
+    loadFailedAlert: "Could not load profile from LilyGO at {host}.",
   },
   fr: {
     langBtn: "🇬🇧 EN",
+    btnModeSimple: "⚡ Simple",
+    btnModeAdvanced: "🛠️ Avancé",
     httpsBanner: '🌐 <strong>Hébergé sur GitHub Pages (HTTPS)</strong> : Les navigateurs bloquent les requêtes Wi-Fi directes vers les appareils HTTP locaux. Utilisez <strong>« Exporter JSON »</strong> pour importer via <a href="http://tv-remote.local/setup" target="_blank">tv-remote.local/setup</a>, ou utilisez <strong>« Déployer via USB »</strong> !',
     studioTitle: "LiLyGO Remote Studio",
     studioSubtitle: "Concepteur universel d'interfaces et de macros DuckyScript",
     targetHostPlaceholder: "IP cible ou mDNS",
     btnConnect: "Connecter",
+    btnLoadDongle: "📥 Charger depuis le LilyGO",
+    btnWifiDeploy: "🚀 Enregistrer sur le LilyGO",
     btnPair: "🔒 Associer le dongle",
     btnImport: "📂 Importer JSON",
     btnCopy: "📋 Copier JSON",
     btnExport: "💾 Exporter JSON",
     btnUsbDeploy: "⚡ Déployer via USB",
-    btnWifiDeploy: "🚀 Déployer par Wi-Fi",
     loadTemplate: "Modèles prédéfinis",
     optTplChoose: "-- Choisir un modèle prédéfini --",
+    optGroupSaved: "Enregistrés sur le LilyGO",
+    optGroupDefaults: "Modèles par défaut",
     optTplTv: "Télécommande Smart TV",
     optTplPc: "PC Windows & Centre Multimédia",
     optTplMac: "macOS Multimédia & Raccourcis",
@@ -420,6 +435,8 @@ const I18N = {
     optIconVideo: "🎥 YouTube / Vidéo",
     optIconFilm: "🎬 Netflix / Film",
     optIconSearch: "🔍 Recherche",
+    btnImportCustomIcon: "🖼️ Importer une image",
+    customIconLoaded: "Image personnalisée chargée",
     btnSpan: "Largeur de grille (Colonnes)",
     optSpan1: "1 colonne (Standard)",
     optSpan2: "2 colonnes (Large)",
@@ -473,13 +490,38 @@ const I18N = {
     pairTimedOut: "Délai d'association dépassé. Réessayez.",
     pairCannotContact: "Impossible de joindre le LilyGO à l'adresse ",
     connDotConnected: "Connecté au LilyGO",
+    loadingFromDongle: "Récupération de la disposition active du LilyGO...",
+    loadSuccessToast: "Profil actif chargé depuis le LilyGO ! 🎉",
+    loadFailedAlert: "Impossible de charger le profil depuis le LilyGO à {host}.",
   }
 };
 
 let currentLang = 'en';
+let currentMode = 'simple'; // 'simple' | 'advanced'
 
 function t(key) {
   return (I18N[currentLang] && I18N[currentLang][key]) || (I18N['en'] && I18N['en'][key]) || key;
+}
+
+// Mode Switcher (Simple vs. Advanced)
+function setMode(mode) {
+  currentMode = mode === 'advanced' ? 'advanced' : 'simple';
+  localStorage.setItem('lilygo_studio_mode', currentMode);
+
+  const btnSimple = document.getElementById('btnModeSimple');
+  const btnAdvanced = document.getElementById('btnModeAdvanced');
+
+  if (currentMode === 'advanced') {
+    document.body.classList.remove('mode-simple');
+    document.body.classList.add('mode-advanced');
+    if (btnSimple) btnSimple.classList.remove('active');
+    if (btnAdvanced) btnAdvanced.classList.add('active');
+  } else {
+    document.body.classList.remove('mode-advanced');
+    document.body.classList.add('mode-simple');
+    if (btnAdvanced) btnAdvanced.classList.remove('active');
+    if (btnSimple) btnSimple.classList.add('active');
+  }
 }
 
 function setLanguage(lang) {
@@ -507,6 +549,14 @@ function setLanguage(lang) {
     const key = el.getAttribute('data-i18n-placeholder');
     if (strings[key] !== undefined) {
       el.placeholder = strings[key];
+    }
+  });
+
+  // Update optgroup labels
+  document.querySelectorAll('[data-i18n-label]').forEach(el => {
+    const key = el.getAttribute('data-i18n-label');
+    if (strings[key] !== undefined) {
+      el.label = strings[key];
     }
   });
 
@@ -547,6 +597,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const initialLang = forcedDefault || savedLang || (browserIsFr ? 'fr' : 'en');
   setLanguage(initialLang);
 
+  // Mode Initialization (default: simple)
+  const savedMode = localStorage.getItem('lilygo_studio_mode') || 'simple';
+  setMode(savedMode);
+
   const saved = localStorage.getItem('lilygo_studio_profile');
   if (saved) {
     try {
@@ -561,6 +615,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   renderApp();
   checkConnection();
+  fetchSavedProfilesList();
 });
 
 function saveState() {
@@ -569,10 +624,15 @@ function saveState() {
 
 // Render Complete App
 function renderApp() {
-  document.getElementById('profileId').value = profile.id || '';
-  document.getElementById('profileName').value = profile.name || '';
-  document.getElementById('profileDevice').value = profile.deviceType || 'tv';
-  document.getElementById('simRoom').innerText = profile.name || 'Remote';
+  const pId = document.getElementById('profileId');
+  const pName = document.getElementById('profileName');
+  const pDev = document.getElementById('profileDevice');
+  const sRoom = document.getElementById('simRoom');
+
+  if (pId) pId.value = profile.id || '';
+  if (pName) pName.value = profile.name || '';
+  if (pDev) pDev.value = profile.deviceType || 'tv';
+  if (sRoom) sRoom.innerText = profile.name || 'Remote';
 
   renderPagesList();
   renderSimTabs();
@@ -711,7 +771,11 @@ function renderSimGrid() {
     if (b.color) el.style.background = b.color;
 
     let content = '';
-    if (b.icon) content += `<span class="sim-btn-icon">${getIconSymbol(b.icon)}</span>`;
+    if (b.customIcon) {
+      content += `<img src="${b.customIcon}" class="sim-btn-custom-icon" alt="" />`;
+    } else if (b.icon) {
+      content += `<span class="sim-btn-icon">${getIconSymbol(b.icon)}</span>`;
+    }
     if (b.label) content += `<span class="sim-btn-label">${escapeHtml(b.label)}</span>`;
     el.innerHTML = content || '&bull;';
 
@@ -781,6 +845,20 @@ function renderInspector() {
   document.getElementById('btnSpan').value = b.span || 1;
   document.getElementById('hidKey').value = b.code || 'OK';
 
+  // Custom icon preview
+  const prevWrap = document.getElementById('customIconPreviewWrap');
+  const prevImg = document.getElementById('customIconPreview');
+  const clearBtn = document.getElementById('btnClearCustomIcon');
+  if (b.customIcon) {
+    if (prevWrap) prevWrap.style.display = 'flex';
+    if (prevImg) prevImg.src = b.customIcon;
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+  } else {
+    if (prevWrap) prevWrap.style.display = 'none';
+    if (prevImg) prevImg.src = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+
   changeBtnAction();
 
   if (b.action === 'macro') {
@@ -825,6 +903,54 @@ function updateSelectedBtn() {
 
   renderSimGrid();
   saveState();
+}
+
+// Custom Image Icon Uploader
+function onCustomIconSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const curPage = profile.pages[currentPageIdx];
+  if (selectedBtnIdx === null || !curPage || !curPage.buttons[selectedBtnIdx]) return;
+  const b = curPage.buttons[selectedBtnIdx];
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const rawDataUrl = e.target.result;
+    // Scale image down to max 64x64 for compact storage
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 64;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      b.customIcon = canvas.toDataURL('image/png');
+      b.icon = ''; // Clear preset icon
+      renderApp();
+    };
+    img.src = rawDataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCustomIcon() {
+  const curPage = profile.pages[currentPageIdx];
+  if (selectedBtnIdx === null || !curPage || !curPage.buttons[selectedBtnIdx]) return;
+  delete curPage.buttons[selectedBtnIdx].customIcon;
+  renderApp();
 }
 
 function setBtnColor(hex) {
@@ -948,15 +1074,93 @@ function removeMacroStep(stepIdx) {
 // Templates Loader
 function loadSelectedTemplate() {
   const sel = document.getElementById('templateSelect');
-  const key = sel.value;
-  if (!key || !TEMPLATES[key]) return;
+  const val = sel.value;
+  if (!val) return;
+
+  if (val.startsWith('saved:')) {
+    const pid = val.substring(6);
+    loadSavedProfileFromDongle(pid);
+    sel.value = '';
+    return;
+  }
+
+  if (!TEMPLATES[val]) return;
   if (!confirm(t('tplConfirm').replace('{name}', sel.options[sel.selectedIndex].text))) return;
 
-  profile = JSON.parse(JSON.stringify(TEMPLATES[key]));
+  profile = JSON.parse(JSON.stringify(TEMPLATES[val]));
   currentPageIdx = 0;
   selectedBtnIdx = null;
   renderApp();
   sel.value = '';
+}
+
+// Saved Profiles on LilyGO
+async function fetchSavedProfilesList() {
+  const host = getTargetHost();
+  const grp = document.getElementById('optGroupSaved');
+  if (!grp) return;
+
+  try {
+    const res = await fetch(`${host}/api/profiles`, { method: 'GET', mode: 'cors' });
+    if (!res.ok) return;
+    const list = await res.json();
+    grp.innerHTML = '';
+    if (Array.isArray(list) && list.length > 0) {
+      list.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = `saved:${p.id}`;
+        opt.textContent = `📺 ${p.name || p.id} ${p.active ? '(Active)' : ''}`;
+        grp.appendChild(opt);
+      });
+    }
+  } catch (e) {
+    // Offline or HTTPS mixed content
+  }
+}
+
+async function loadSavedProfileFromDongle(profileId) {
+  const host = getTargetHost();
+  showToast(t('loadingFromDongle'));
+  try {
+    const res = await fetch(`${host}/api/profiles/active`, { method: 'GET', mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const data = await res.json();
+    if (data && data.pages) {
+      profile = data;
+      currentPageIdx = 0;
+      selectedBtnIdx = null;
+      renderApp();
+      showToast(t('loadSuccessToast'));
+    }
+  } catch (err) {
+    alert(t('loadFailedAlert').replace('{host}', host) + '\n\n' + t('httpsMixedContentAlert'));
+  }
+}
+
+// 1-Click "Load from LilyGO"
+async function loadFromDongle() {
+  const host = getTargetHost();
+  showToast(t('loadingFromDongle'));
+
+  try {
+    const res = await fetch(`${host}/api/profiles/active`, { method: 'GET', mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const data = await res.json();
+
+    if (data && data.pages && Array.isArray(data.pages)) {
+      profile = data;
+      currentPageIdx = 0;
+      selectedBtnIdx = null;
+      renderApp();
+      showToast(t('loadSuccessToast'));
+      fetchSavedProfilesList();
+    } else {
+      alert(t('invalidProfileJson'));
+    }
+  } catch (err) {
+    console.warn('Load from dongle failed:', err);
+    alert(t('loadFailedAlert').replace('{host}', host) + '\n\n' + t('httpsMixedContentAlert'));
+  }
 }
 
 // Import / Export JSON

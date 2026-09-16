@@ -505,3 +505,67 @@ button.danger {
   display: none;
   z-index: 200;
 }
+
+/* Mode Switcher (Simple vs. Advanced) */
+.mode-switch-group {
+  display: flex;
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-switch-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-switch-btn:hover {
+  color: #fff;
+}
+
+.mode-switch-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+}
+
+/* Visibility based on body mode class */
+body.mode-simple .advanced-only {
+  display: none !important;
+}
+
+/* Custom Image Icon in Simulator and Inspector */
+.sim-btn-custom-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  pointer-events: none;
+  margin-bottom: 2px;
+}
+
+.custom-icon-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.custom-icon-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  object-fit: contain;
+  padding: 2px;
+}
+
