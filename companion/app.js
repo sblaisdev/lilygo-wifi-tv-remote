@@ -19,13 +19,13 @@ const TEMPLATES = {
           { label: "", action: "none", span: 1 },
           { label: "MUTE", icon: "volume-x", color: "#64748b", action: "hid", code: "MUTE", span: 1 },
           { label: "", action: "none", span: 1 },
-          { label: "▲", icon: "arrow-up", color: "#334155", action: "hid", code: "UP", span: 1 },
+          { label: "", icon: "arrow-up", color: "#334155", action: "hid", code: "UP", span: 1 },
           { label: "", action: "none", span: 1 },
-          { label: "◄", icon: "arrow-left", color: "#334155", action: "hid", code: "LEFT", span: 1 },
+          { label: "", icon: "arrow-left", color: "#334155", action: "hid", code: "LEFT", span: 1 },
           { label: "OK", icon: "check", color: "#3b82f6", action: "hid", code: "OK", span: 1 },
-          { label: "►", icon: "arrow-right", color: "#334155", action: "hid", code: "RIGHT", span: 1 },
+          { label: "", icon: "arrow-right", color: "#334155", action: "hid", code: "RIGHT", span: 1 },
           { label: "", action: "none", span: 1 },
-          { label: "▼", icon: "arrow-down", color: "#334155", action: "hid", code: "DOWN", span: 1 },
+          { label: "", icon: "arrow-down", color: "#334155", action: "hid", code: "DOWN", span: 1 },
           { label: "", action: "none", span: 1 },
           { label: "BACK", icon: "corner-down-left", color: "#475569", action: "hid", code: "BACK", span: 1 },
           { label: "HOME", icon: "home", color: "#475569", action: "hid", code: "HOME", span: 1 },
@@ -35,7 +35,7 @@ const TEMPLATES = {
           { label: "PLAY", icon: "play", color: "#06b6d4", action: "hid", code: "PLAY_PAUSE", span: 1 },
           { label: "YouTube", icon: "video", color: "#e11d48", action: "macro", macro: "DELAY 100\nSTRING youtube\nENTER", span: 1 },
           { label: "Netflix", icon: "film", color: "#dc2626", action: "macro", macro: "DELAY 100\nSTRING netflix\nENTER", span: 1 },
-          { label: "Search", icon: "search", color: "#8b5cf6", action: "hid", code: "ENTER", span: 1 }
+          { label: "CLEAR", icon: "x-square", color: "#8b5cf6", action: "hid", code: "CLEAR", span: 1 }
         ]
       },
       {

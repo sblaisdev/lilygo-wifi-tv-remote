@@ -897,13 +897,12 @@ void initStorage() {
     LittleFS.mkdir(PROFILES_DIR);
   }
 
-  if (!LittleFS.exists("/profiles/default-tv.json")) {
-    File f = LittleFS.open("/profiles/default-tv.json", "w");
-    if (f) {
-      f.print(FPSTR(DEFAULT_PROFILE_TV));
-      f.close();
-      Serial.println("[STORAGE] Installed built-in default-tv.json");
-    }
+  // Always sync default-tv.json with current firmware profile
+  File fTv = LittleFS.open("/profiles/default-tv.json", "w");
+  if (fTv) {
+    fTv.print(FPSTR(DEFAULT_PROFILE_TV));
+    fTv.close();
+    Serial.println("[STORAGE] Synced built-in default-tv.json");
   }
 
   if (!LittleFS.exists("/profiles/pc-media.json")) {
@@ -1235,6 +1234,27 @@ void handleKeyCommand(const String& key) {
     delay(40);
     ConsumerControl.release();
     Serial.printf("[HID] Dispatched consumer key: %s\n", key.c_str());
+    return;
+  }
+
+  if (key == "CLEAR") {
+    // Smart Clear: Ctrl+A -> Backspace + rapid burst of backspaces
+    Keyboard.press(KEY_LEFT_CTRL);
+    Keyboard.press('a');
+    delay(30);
+    Keyboard.releaseAll();
+    delay(20);
+    Keyboard.press(KEY_BACKSPACE);
+    delay(20);
+    Keyboard.release(KEY_BACKSPACE);
+    delay(10);
+    for (int i = 0; i < 25; i++) {
+      Keyboard.press(KEY_BACKSPACE);
+      delay(5);
+      Keyboard.release(KEY_BACKSPACE);
+      delay(5);
+    }
+    Serial.println("[HID] Dispatched Smart Clear sequence to TV");
     return;
   }
 

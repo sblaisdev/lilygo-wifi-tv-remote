@@ -210,6 +210,25 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       cursor: pointer;
       display: none;
     }
+    .btn-clear-tv {
+      background: #1e2536;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: #94a3b8;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.12s ease;
+    }
+    .btn-clear-tv:active {
+      background: var(--primary);
+      color: #fff;
+      transform: scale(0.96);
+    }
     .dpad-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -239,7 +258,6 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       background: var(--primary);
     }
     .tabs-container {
-
       display: flex;
       gap: 8px;
       overflow-x: auto;
@@ -250,22 +268,21 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
     .tab-btn {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 20px;
+      border-radius: 10px;
       color: var(--text-muted);
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       padding: 6px 14px;
-      white-space: nowrap;
       cursor: pointer;
+      white-space: nowrap;
       transition: all 0.15s ease;
     }
     .tab-btn.active {
       background: var(--primary);
-      color: #fff;
       border-color: var(--primary);
-      box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+      color: #fff;
     }
-    .dynamic-grid {
+    .button-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
@@ -329,24 +346,25 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
+
   <div class="container">
     <header>
       <div class="brand">
-        <img src="/icon.svg" class="brand-icon" alt="TV icon">
-        <span>%ROOM_NAME% TV</span>
+        <img class="brand-icon" src="/icon.svg" alt="TV Icon">
+        <span>%ROOM_NAME% Remote</span>
       </div>
       <div class="header-links">
-        <span class="badge" id="connStatus">Connecting...</span>
-        <a href="/setup" class="config-link" title="Wi-Fi Settings">&#x2699;</a>
+        <div class="badge" id="connStatus">Connecting...</div>
+        <a href="/setup" class="config-link" title="Setup &amp; Settings">&#x2699;</a>
       </div>
     </header>
 
-    <!-- Multi-Page Tabs -->
-    <div class="tabs-container" id="pageTabs"></div>
+    <!-- Dynamic Profile Page Tabs -->
+    <div class="tabs-container" id="pageTabs" style="display: none;"></div>
 
-    <!-- Dynamic Button Grid -->
-    <div class="card" style="padding: 12px;">
-      <div class="dynamic-grid" id="buttonGrid"></div>
+    <!-- Dynamic Grid Container -->
+    <div class="card">
+      <div class="button-grid" id="buttonGrid"></div>
     </div>
 
     <!-- Live Typing Console -->
@@ -356,7 +374,10 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
           <span class="live-pulse"></span>
           Live Keystroke Stream
         </span>
-        <span id="encStatus" style="font-size: 0.72rem; color: #38bdf8;">&#x1F512; Encrypted</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn-clear-tv" onclick="clearAllText()" title="Clear TV search box and text input">&#x2327; Clear TV</button>
+          <span id="encStatus" style="font-size: 0.72rem; color: #38bdf8;">&#x1F512; Encrypted</span>
+        </div>
       </div>
       <div class="input-wrapper">
         <input 
@@ -368,7 +389,7 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
           autocapitalize="off" 
           spellcheck="false"
         >
-        <button class="clear-btn" id="clearBtn" onclick="clearInput()">&times;</button>
+        <button class="clear-btn" id="clearBtn" onclick="clearAllText()" title="Clear TV &amp; Text">&times;</button>
       </div>
     </div>
 
@@ -699,7 +720,9 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
 
         el.onclick = () => {
           vibrate();
-          if (b.action === 'hid') {
+          if (b.code === 'CLEAR' || b.action === 'clear') {
+            clearAllText();
+          } else if (b.action === 'hid') {
             sendKey(b.code);
           } else if (b.action === 'macro') {
             sendMacro(b.macro);
@@ -754,11 +777,15 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       setToast('Key: ' + keyName);
     }
 
-    function clearInput() {
+    function clearAllText() {
       input.value = '';
       previousVal = '';
       clearBtn.style.display = 'none';
+      vibrate();
+      sendPayload('K:CLEAR');
+      setToast('Cleared TV & Input ⌧');
     }
+    const clearInput = clearAllText;
 
     // Initialize layout
     renderProfile();
