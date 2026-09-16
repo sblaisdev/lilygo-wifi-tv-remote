@@ -588,8 +588,24 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       previousVal = current;
     });
 
+    let lastStartBackspaceTime = 0;
+    function sendStartBackspace() {
+      const now = Date.now();
+      if (now - lastStartBackspaceTime < 60) return;
+      lastStartBackspaceTime = now;
+      vibrate();
+      sendPayload('K:BACKSPACE');
+      setToast('Sent: Backspace');
+    }
+
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Backspace' || e.keyCode === 8) {
+        if (input.selectionStart === 0 && input.selectionEnd === 0) {
+          e.preventDefault();
+          sendStartBackspace();
+          return;
+        }
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         vibrate();
         sendPayload('K:ENTER');
@@ -617,6 +633,15 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
         e.preventDefault();
         sendPayload('K:BACK');
         setToast('Key: BACK / ESC');
+      }
+    });
+
+    input.addEventListener('beforeinput', (e) => {
+      if (e.inputType === 'deleteContentBackward') {
+        if (input.selectionStart === 0 && input.selectionEnd === 0) {
+          e.preventDefault();
+          sendStartBackspace();
+        }
       }
     });
 
