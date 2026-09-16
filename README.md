@@ -1,4 +1,4 @@
-# 📺 LilyGO T-Dongle-S3 TV Remote & Keyboard
+# 📺 LiLyGO Wi-Fi TV Remote
 
 Turn your smartphone into a fast, responsive remote control and wireless keyboard for your Smart TV, streaming box, or PC—powered by the pocket-sized **LilyGO T-Dongle-S3** USB stick.
 
@@ -11,7 +11,7 @@ Turn your smartphone into a fast, responsive remote control and wireless keyboar
 ## 🎨 Companion Remote Designer
 
 Customize your remote layout, arrange buttons, or program automated shortcut macros directly in your web browser:  
-👉 **[Launch Online Remote Designer](https://sblaisdev.github.io/t-dongle-s3-tv-remote/)**
+👉 **[Launch Online Remote Designer](https://sblaisdev.github.io/lilygo-wifi-tv-remote/)**
 
 ---
 
@@ -20,7 +20,7 @@ Customize your remote layout, arrange buttons, or program automated shortcut mac
 - **📱 Turn Any Phone into a TV Remote**: Open a web link on your iPhone, Android phone, tablet, or laptop to instantly control your TV. No app store downloads, accounts, or Bluetooth pairing required.
 - **⌨️ Fast, Hassle-Free Typing on Your TV**: Never hunt-and-peck individual letters on an awkward on-screen TV keyboard again. Use your phone's full keyboard to effortlessly type search queries, passwords, and web addresses directly to your TV in real time.
 - **🔌 100% Plug-and-Play (Zero Drivers)**: Plug the dongle into any standard USB port on your TV, media player, streaming box, or computer. Your device recognizes it instantly as a standard USB keyboard and media controller—no software installation needed.
-- **🎨 Visual Remote Customization**: Use the built-in [Remote Designer](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) to arrange buttons, create quick-access buttons for apps like Netflix and YouTube, or switch between TV and PC modes.
+- **🎨 Visual Remote Customization**: Use the built-in [Remote Designer](https://sblaisdev.github.io/lilygo-wifi-tv-remote/) to arrange buttons, create quick-access buttons for apps like Netflix and YouTube, or switch between TV and PC modes.
 - **📲 Install as a Home Screen App (PWA)**: Save the remote to your phone's home screen with one tap. It opens full-screen just like a native app with fast response and vibration feedback.
 - **🌐 Works at Home and on the Go**: Connect it to your home Wi-Fi for everyday use, or let it generate its own private Wi-Fi hotspot when staying in hotels or dorms.
 - **🔄 1-Click Wireless Updates**: Keep your device up-to-date with a single tap from your phone's browser over Wi-Fi. No cables or programming knowledge needed.
@@ -48,7 +48,7 @@ Customize your remote layout, arrange buttons, or program automated shortcut mac
 5. **Standalone AP or Station Mode**: Connect to your existing home Wi-Fi or configure a permanent standalone hotspot for direct phone-to-TV control while traveling.
 6. **PWA Ready**: Installable to iOS and Android home screens with a custom neon TV remote icon and web app manifest.
 7. **Fail-Safe Factory Reset**: 10-second button hold with two-step confirmation erases NVS flash while preserving hardware eFuses.
-8. **Universal Companion Studio & DuckyScript Macros**: An intuitive layout & macro designer companion app hosted on [GitHub Pages](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) (or locally in `docs/` and redirected from `/designer`) to visually build custom button grids and deploy automated keystroke macros directly via Wi-Fi, USB, or JSON export. Profiles are saved on-chip in LittleFS with automatic MicroSD card detection.
+8. **Universal Companion Studio & DuckyScript Macros**: An intuitive layout & macro designer companion app hosted on [GitHub Pages](https://sblaisdev.github.io/lilygo-wifi-tv-remote/) (or locally in `docs/` and redirected from `/designer`) to visually build custom button grids and deploy automated keystroke macros directly via Wi-Fi, USB, or JSON export. Profiles are saved on-chip in LittleFS with automatic MicroSD card detection.
 9. **1-Click Cloud OTA & Test Device Channel**: Over-the-air firmware updates directly from GitHub Releases with zero developer stack needed. Features version selection with automatic rollback support, automated CI release binaries, offline manual `.bin` fallback, and a dedicated **Test Device Mode** toggle to test experimental and pre-release builds safely.
 
 

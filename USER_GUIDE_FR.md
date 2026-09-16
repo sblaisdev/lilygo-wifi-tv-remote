@@ -129,7 +129,7 @@ Le microprogramme intègre une application compagnon universelle permettant de c
 
 ### Accéder au Studio
 Vous pouvez accéder au studio de trois manières simples :
-- **Hébergé en ligne sur GitHub Pages** : Ouvrez [https://sblaisdev.github.io/t-dongle-s3-tv-remote/](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) dans n'importe quel navigateur moderne.
+- **Hébergé en ligne sur GitHub Pages** : Ouvrez [https://sblaisdev.github.io/lilygo-wifi-tv-remote/](https://sblaisdev.github.io/lilygo-wifi-tv-remote/) dans n'importe quel navigateur moderne.
 - **Directement depuis le dongle** : Cliquez sur *"Open Layout & Macro Designer"* sur la page de configuration (`http://tv-remote.local/setup`), ou naviguez vers `http://tv-remote.local/designer` (redirection automatique).
 - **En local / Hors-ligne** : Ouvrez `docs/index.html` ou `companion/index.html` dans un navigateur sur votre ordinateur ou tablette.
 

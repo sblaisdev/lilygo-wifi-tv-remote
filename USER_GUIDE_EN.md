@@ -130,7 +130,7 @@ The firmware includes a universal companion app for designing custom remote layo
 
 ### Accessing the Studio
 You can access the studio in three convenient ways:
-- **Hosted on GitHub Pages**: Open [https://sblaisdev.github.io/t-dongle-s3-tv-remote/](https://sblaisdev.github.io/t-dongle-s3-tv-remote/) in any modern browser.
+- **Hosted on GitHub Pages**: Open [https://sblaisdev.github.io/lilygo-wifi-tv-remote/](https://sblaisdev.github.io/lilygo-wifi-tv-remote/) in any modern browser.
 - **Directly from the Dongle**: Click *"Open Layout & Macro Designer"* on the Settings page (`http://tv-remote.local/setup`), or navigate to `http://tv-remote.local/designer` (redirects automatically).
 - **Offline / Local**: Open `docs/index.html` or `companion/index.html` directly on your PC, Mac, or tablet.
 

@@ -1381,7 +1381,7 @@ void setupRoutes() {
 
   // Companion Layout & Macro Designer Studio (Hosted on GitHub Pages)
   server.on("/designer", HTTP_GET, []() {
-    server.sendHeader("Location", "https://sblaisdev.github.io/t-dongle-s3-tv-remote/", true);
+    server.sendHeader("Location", "https://sblaisdev.github.io/lilygo-wifi-tv-remote/", true);
     server.send(302, "text/plain", "Redirecting to GitHub Hosted Designer...");
   });
 

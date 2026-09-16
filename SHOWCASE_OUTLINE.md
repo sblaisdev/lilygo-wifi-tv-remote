@@ -14,7 +14,7 @@ This outline documents the complete end-to-end development cycle of the **LilyGO
 | **Firmware Compilations** | **8 successful builds** |
 | **On-Device Flashes** | **6 hardware flash deployments** |
 | **Target Hardware** | LilyGO T-Dongle-S3 (ESP32-S3 dual-core @ 240 MHz, 80×160 ST7735 LCD, USB HID) |
-| **Repository URL** | [github.com/sblaisdev/t-dongle-s3-tv-remote](https://github.com/sblaisdev/t-dongle-s3-tv-remote) |
+| **Repository URL** | [github.com/sblaisdev/lilygo-wifi-tv-remote](https://github.com/sblaisdev/lilygo-wifi-tv-remote) |
 
 ### Phase Duration Overview
 
@@ -148,7 +148,7 @@ This outline documents the complete end-to-end development cycle of the **LilyGO
 - **Turn 30 (Duration: 1m 59s)**  
   *User*: *"do you have a github repo for this project? if not create one"*.  
   *Antigravity Action*: Checked GitHub CLI authentication, created `.gitignore`, initialized Git repository, created remote repository on GitHub via `gh repo create`, and pushed `main` branch:
-  - **Live Repo**: [github.com/sblaisdev/t-dongle-s3-tv-remote](https://github.com/sblaisdev/t-dongle-s3-tv-remote)
+  - **Live Repo**: [github.com/sblaisdev/lilygo-wifi-tv-remote](https://github.com/sblaisdev/lilygo-wifi-tv-remote)
 - **Turn 31 (Duration: 1m 01s)**  
   *User*: *"search the repo for secrets"*.  
   *Antigravity Action*: Executed a comprehensive regex and commit-history scan across all 12 tracked files for Wi-Fi credentials, tokens, API keys, private keys, and IP leaks. Confirmed **100% clean repository**.

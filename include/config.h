@@ -7,7 +7,7 @@
 #define DEFAULT_MDNS_HOSTNAME   "tv-remote"
 #define DEFAULT_AP_SSID         "TV-Remote-Setup"
 #define FIRMWARE_VERSION        "v1.3.2-beta"
-#define GITHUB_REPO             "sblaisdev/t-dongle-s3-tv-remote"
+#define GITHUB_REPO             "sblaisdev/lilygo-wifi-tv-remote"
 
 // ==========================================
 // Hardware Pin Definitions (LilyGO T-Dongle-S3)

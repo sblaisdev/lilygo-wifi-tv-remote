@@ -1036,7 +1036,7 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         </div>
 
         <div style="text-align: center; margin-top: 14px;">
-          <a href="https://sblaisdev.github.io/t-dongle-s3-tv-remote/" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.9rem; font-weight: 600; text-decoration: none;">&#x2728; Open Layout &amp; Macro Designer (GitHub Pages)</a>
+          <a href="https://sblaisdev.github.io/lilygo-wifi-tv-remote/" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.9rem; font-weight: 600; text-decoration: none;">&#x2728; Open Layout &amp; Macro Designer (GitHub Pages)</a>
         </div>
       </div>
 
