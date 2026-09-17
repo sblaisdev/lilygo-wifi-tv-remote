@@ -33,6 +33,9 @@ Customize your remote layout, arrange buttons, or program automated shortcut mac
 
 ## 📖 User Guides / Guides d'utilisation
 
+### ⚡ First-Time Firmware Installation (New Dongle)
+- 🌐 **[1-Click Web Firmware Installer](https://sblaisdev.github.io/lilygo-wifi-tv-remote/install.html)** : Flash your brand new or repurposed LilyGO T-Dongle-S3 directly from Chrome or Edge. No software, no drivers, no terminal required!
+
 ### 🚀 Simple Quick Start / Démarrage Rapide
 - 🇬🇧 **[Getting Started Guide (Simple Terms)](GETTING_STARTED.md)** : Step-by-step setup and remote access in plain, non-technical language.
 - 🇫🇷 **[Guide de Démarrage Rapide (Termes Simples)](DEMARRAGE_RAPIDE.md)** : Configuration et accès à la télécommande expliqués simplement.

@@ -1,4 +1,4 @@
-﻿# 📺 Télécommande TV Wi-Fi LiLyGO
+# 📺 Télécommande TV Wi-Fi LiLyGO
 
 <p align="center">
   <a href="README.md">🇬🇧 English</a> | <b>🇫🇷 Français</b>
@@ -33,6 +33,9 @@ Personnalisez la disposition de votre télécommande, réorganisez les boutons o
 ---
 
 ## 📖 Guides d'utilisation
+
+### ⚡ Première installation du firmware (Nouvelle clé)
+- 🌐 **[Installateur Web de Firmware (1 clic)](https://sblaisdev.github.io/lilygo-wifi-tv-remote/install.html)** : Flashez votre clé LilyGO T-Dongle-S3 neuve ou réutilisée directement depuis Chrome ou Edge. Aucun logiciel, aucun pilote, aucun terminal !
 
 ### 🚀 Démarrage Rapide (Termes Simples)
 - 🇫🇷 **[Guide de Démarrage Rapide](DEMARRAGE_RAPIDE.md)** : Configuration pas à pas et accès à la télécommande expliqués simplement.

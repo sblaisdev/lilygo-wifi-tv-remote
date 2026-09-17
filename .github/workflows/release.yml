@@ -33,16 +33,76 @@ jobs:
       - name: Build Firmware for LilyGO T-Dongle-S3
         run: pio run -e t-dongle-s3
 
-      - name: Upload Artifact
+      - name: Generate Merged Factory Binary
+        run: |
+          pip install esptool
+          BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -n 1)
+          echo "Using boot_app0 from: $BOOT_APP0"
+          python -m esptool --chip esp32s3 merge_bin \
+            -o .pio/build/t-dongle-s3/firmware-factory.bin \
+            --flash_mode dio \
+            --flash_size 8MB \
+            0x0 .pio/build/t-dongle-s3/bootloader.bin \
+            0x8000 .pio/build/t-dongle-s3/partitions.bin \
+            0xe000 "$BOOT_APP0" \
+            0x10000 .pio/build/t-dongle-s3/firmware.bin
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware-t-dongle-s3
-          path: .pio/build/t-dongle-s3/firmware.bin
+          path: |
+            .pio/build/t-dongle-s3/firmware.bin
+            .pio/build/t-dongle-s3/firmware-factory.bin
 
-      - name: Upload Release Asset (firmware.bin)
+      - name: Upload Release Assets (firmware.bin & firmware-factory.bin)
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: .pio/build/t-dongle-s3/firmware.bin
+          files: |
+            .pio/build/t-dongle-s3/firmware.bin
+            .pio/build/t-dongle-s3/firmware-factory.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-pages:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Built Firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-t-dongle-s3
+          path: artifacts
+
+      - name: Prepare Web Installer Files
+        run: |
+          cp artifacts/firmware-factory.bin docs/firmware-factory.bin
+          RELEASE_TAG="${{ github.ref_name }}"
+          if [ -n "$RELEASE_TAG" ]; then
+            sed -i "s/\"version\": \".*\"/\"version\": \"$RELEASE_TAG\"/" docs/manifest.json
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+

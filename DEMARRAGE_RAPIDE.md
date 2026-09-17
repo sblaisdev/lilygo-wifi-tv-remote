@@ -14,6 +14,19 @@ Vous branchez cette petite clé USB sur votre Smart TV (ou boîtier TV), et elle
 
 ---
 
+## Partie 0 : Première installation du firmware (Clé neuve ou réutilisée)
+
+Si votre LilyGO T-Dongle-S3 est neuf ou a été utilisé pour un autre projet, installez d'abord le firmware :
+
+1. Ouvrez l'**[Installateur Web de Firmware LilyGO](https://sblaisdev.github.io/lilygo-wifi-tv-remote/install.html)** dans **Google Chrome** ou **Microsoft Edge**.
+2. Branchez votre LilyGO T-Dongle-S3 sur un port USB de votre ordinateur.
+3. Cliquez sur **« Connecter et Installer le Firmware »**, sélectionnez le périphérique **ESP32-S3** dans la fenêtre popup et confirmez. *(Cochez « Effacer l'appareil » en cas de réutilisation).*
+4. En ~30 secondes, l'installation est terminée et la clé redémarre directement sur la Partie 1 ci-dessous !
+
+> **Dépannage** : Si la clé n'est pas détectée, débranchez-la, maintenez enfoncé le petit bouton latéral, branchez-la au port USB, puis relâchez le bouton pour forcer le mode de programmation.
+
+---
+
 ## Partie 1 : Première configuration (Connexion à votre Wi-Fi)
 
 Cette étape ne se fait qu'une seule fois !

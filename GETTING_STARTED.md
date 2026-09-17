@@ -14,6 +14,19 @@ You plug this little USB stick into your Smart TV (or TV box), and it turns your
 
 ---
 
+## Part 0: Initial Installation (New or Repurposed Dongles)
+
+If your LilyGO T-Dongle-S3 is brand new or was previously used for another project, install the firmware first:
+
+1. Open **[LilyGO Web Firmware Installer](https://sblaisdev.github.io/lilygo-wifi-tv-remote/install.html)** in **Google Chrome** or **Microsoft Edge**.
+2. Plug your LilyGO T-Dongle-S3 into a USB port on your computer.
+3. Click **"Connect & Install Firmware"**, select the **ESP32-S3** device from the popup, and confirm. *(Check "Erase device" if repurposing an older dongle).*
+4. Within ~30 seconds, the installation completes and the dongle reboots directly into Part 1 below!
+
+> **Troubleshooting**: If your dongle isn't recognized, unplug it, hold down the small button on the side, plug it into the USB port, and release the button to force bootloader mode.
+
+---
+
 ## Part 1: First-Time Setup (Connecting to Your Home Wi-Fi)
 
 You only have to do this once!
