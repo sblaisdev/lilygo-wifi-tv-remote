@@ -582,9 +582,15 @@ let profile = JSON.parse(JSON.stringify(TEMPLATES.tv));
 let currentPageIdx = 0;
 let selectedBtnIdx = null;
 
+function dismissHttpsBanner() {
+  const banner = document.getElementById('httpsBanner');
+  if (banner) banner.style.display = 'none';
+  localStorage.setItem('lilygo_https_banner_dismissed', '1');
+}
+
 // Initialize on Load
 window.addEventListener('DOMContentLoaded', () => {
-  if (window.location.protocol === 'https:') {
+  if (window.location.protocol === 'https:' && !localStorage.getItem('lilygo_https_banner_dismissed')) {
     const banner = document.getElementById('httpsBanner');
     if (banner) banner.style.display = 'flex';
   }

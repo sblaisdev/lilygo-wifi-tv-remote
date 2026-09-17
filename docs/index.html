@@ -15,7 +15,7 @@
       🌐 <strong>Hosted on GitHub Pages (HTTPS)</strong>: Web browsers block direct Wi-Fi network calls to local HTTP devices. 
       Use <strong>"Export JSON"</strong> to upload via <a href="http://tv-remote.local/setup" target="_blank">tv-remote.local/setup</a>, or use <strong>"Deploy via USB"</strong>!
     </span>
-    <span style="cursor: pointer;" onclick="document.getElementById('httpsBanner').style.display='none'">✕</span>
+    <span style="cursor: pointer; padding: 0 6px; font-weight: bold;" onclick="dismissHttpsBanner()" title="Dismiss">✕</span>
   </div>
 
   <!-- Header -->
@@ -119,7 +119,7 @@
         <div class="page-list" id="pagesList"></div>
       </div>
 
-      <div class="form-group advanced-only" id="pageColsGroup" style="margin-top: 10px;">
+      <div class="form-group" id="pageColsGroup" style="margin-top: 10px;">
         <label for="pageCols" data-i18n="pageCols">Grid Columns for This Page</label>
         <select id="pageCols" class="form-select" onchange="updatePageCols()">
           <option value="2" data-i18n="optCols2">2 Columns</option>
