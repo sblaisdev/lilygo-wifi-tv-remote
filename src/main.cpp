@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include <WebSocketsServer.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
@@ -28,14 +29,16 @@
 #include <HTTPUpdate.h>
 #include <WiFiClientSecure.h>
 
-
-
 // USB HID objects
 USBHIDKeyboard Keyboard;
 USBHIDConsumerControl ConsumerControl;
 
 // Display object (ST7735 80x160, Active-LOW backlight on GPIO 38)
 TFT_eSPI tft = TFT_eSPI();
+
+// DNS Server on port 53 for Captive Portal in AP mode
+DNSServer dnsServer;
+const byte DNS_PORT = 53;
 
 // HTTP Web Server on port 80 & WebSocket Server on port 81 (sub-millisecond keystroke stream)
 WebServer server(80);
@@ -443,6 +446,9 @@ void startAccessPoint() {
   WiFi.softAP(DEFAULT_AP_SSID, apPassword.c_str());
   Serial.printf("[AP] Setup Access Point started! SSID: %s\n", DEFAULT_AP_SSID);
 
+  dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+  Serial.println("[DNS] Captive Portal DNS server active.");
+
   wakeScreen();
 }
 
@@ -472,11 +478,14 @@ void connectToSavedWifi() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ssid.c_str(), password.c_str());
     Serial.printf("[WIFI] Standalone AP mode active! SSID: %s, IP: %s\n", ssid.c_str(), WiFi.softAPIP().toString().c_str());
+    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+    Serial.println("[DNS] Standalone AP Captive Portal DNS active.");
     wakeScreen();
     return;
   }
 
   // Mode B: Station Mode (Connect to Home Wi-Fi)
+  dnsServer.stop();
   Serial.printf("[WIFI] Connecting to network: %s\n", ssid.c_str());
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
@@ -559,6 +568,10 @@ void setup() {
 }
 
 void loop() {
+  if (isApMode || opMode == "ap") {
+    dnsServer.processNextRequest();
+  }
+
   server.handleClient();
   webSocket.loop();
 
@@ -1338,20 +1351,35 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 void setupRoutes() {
   server.enableCORS(true);
 
-  // Main Remote Interface (Isolated in unconfigured AP setup mode)
+  // Main Remote Control Interface
   server.on("/", HTTP_GET, []() {
-    if (isApMode && !isConfigured) {
-      // AP Setup Mode Isolation: Force setup page only
-      server.sendHeader("Location", "/setup");
-      server.send(302, "text/plain", "Redirecting to setup portal...");
-      return;
-    }
-
     String html = FPSTR(PAGE_INDEX_TEMPLATE);
     html.replace("%ROOM_NAME%", htmlEscape(roomName));
     html.replace("%AUTH_REQUIRED%", authRequired ? "true" : "false");
     html.replace("%ACTIVE_PROFILE_JSON%", getActiveProfileJson());
     server.send(200, "text/html", html);
+  });
+
+  // Captive Portal Probe Endpoints (iOS, Android, Windows, Firefox)
+  server.on("/hotspot-detect.html", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/");
+    server.send(302, "text/plain", "Redirecting to remote...");
+  });
+  server.on("/generate_204", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/");
+    server.send(302, "text/plain", "Redirecting to remote...");
+  });
+  server.on("/gen_204", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/");
+    server.send(302, "text/plain", "Redirecting to remote...");
+  });
+  server.on("/connecttest.txt", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/");
+    server.send(302, "text/plain", "Redirecting to remote...");
+  });
+  server.on("/canonical.html", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/");
+    server.send(302, "text/plain", "Redirecting to remote...");
   });
 
   // App Icon (SVG format for home screen and favicon)
@@ -1436,12 +1464,8 @@ void setupRoutes() {
       html.replace("%CRYPTO_STATUS_BADGE%", "<span class=\"badge\" style=\"background:#ef444430;color:#f87171;border-color:#ef444460;\">&#x26A0; Hardware Encryption Offline</span>");
     }
 
-    // Back Link (hide in unconfigured AP setup mode)
-    if (isConfigured) {
-      html.replace("%BACK_LINK%", "<a href=\"/\" class=\"back-link\">&#x2190; Back to Remote Control</a>");
-    } else {
-      html.replace("%BACK_LINK%", "");
-    }
+    // Back Link
+    html.replace("%BACK_LINK%", "<a href=\"/\" class=\"back-link\">&#x2190; Back to Remote Control</a>");
 
     server.send(200, "text/html", html);
   });
@@ -1734,6 +1758,16 @@ void setupRoutes() {
       Update.end();
       Serial.println("[OTA-Manual] Aborted");
       updateScreenContent();
+    }
+  });
+
+  // Captive Portal Fallback: On unknown routes, redirect to root remote page if in AP mode
+  server.onNotFound([]() {
+    if (isApMode || opMode == "ap") {
+      server.sendHeader("Location", "http://192.168.4.1/");
+      server.send(302, "text/plain", "Redirecting to remote...");
+    } else {
+      server.send(404, "text/plain", "404 Not Found");
     }
   });
 }
