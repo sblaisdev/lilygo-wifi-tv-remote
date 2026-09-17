@@ -67,7 +67,8 @@ jobs:
 
   deploy-pages:
     needs: build
-    if: github.event_name == 'release'
+    # Only official, non-draft, non-prerelease stable releases update the web installer
+    if: github.event_name == 'release' && !github.event.release.prerelease && !github.event.release.draft
     runs-on: ubuntu-latest
     permissions:
       contents: read
