@@ -1,6 +1,6 @@
 {
   "name": "LilyGO TV Remote",
-  "version": "1.3.2-beta",
+  "version": "main",
   "new_install_prompt_erase": true,
   "builds": [
     {

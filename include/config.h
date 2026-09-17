@@ -6,7 +6,7 @@
 #define DEFAULT_ROOM_NAME       "Living Room"
 #define DEFAULT_MDNS_HOSTNAME   "tv-remote"
 #define DEFAULT_AP_SSID         "TV-Remote-Setup"
-#define FIRMWARE_VERSION        "v1.3.2-beta"
+#define FIRMWARE_VERSION        "v1.3.2"
 #define GITHUB_REPO             "sblaisdev/lilygo-wifi-tv-remote"
 
 // ==========================================
