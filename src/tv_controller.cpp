@@ -207,7 +207,7 @@ String TvController::discoverTvsJson() {
         if (!alreadyAdded) {
           DiscoveredDevice dev;
           dev.ip = ipStr;
-          dev.port = 80;
+          dev.port = 0;
           dev.id = "dev-" + ipStr;
 
           // Extract LOCATION header
@@ -347,6 +347,11 @@ bool TvController::sendGenericWs(const String& url, const String& payload) {
     port = hostPort.substring(colonIdx + 1).toInt();
   }
 
+  // Safety correction: if port was unspecified or default HTTP (80) on a Samsung WS endpoint
+  if ((port == 80 || port == 0) && path.indexOf("samsung") >= 0) {
+    port = 8001;
+  }
+
   WebSocketsClient client;
   bool messageSent = false;
   bool connected = false;
@@ -406,62 +411,105 @@ String TvController::listenForWsToken(const String& url, const String& handshake
     port = hostPort.substring(colonIdx + 1).toInt();
   }
 
-  WebSocketsClient client;
+  // Safety correction: if port was unspecified or default HTTP (80) on a Samsung WS endpoint
+  if ((port == 80 || port == 0) && path.indexOf("samsung") >= 0) {
+    port = 8001;
+  }
+
+  struct WsCandidate {
+    bool ssl;
+    uint16_t port;
+  };
+  std::vector<WsCandidate> candidates;
+  candidates.push_back({ isWss || port == 8002, port });
+
+  // If targeting Samsung TV, provide fallback between WS (8001) and WSS (8002)
+  if (path.indexOf("samsung") >= 0) {
+    if (port == 8001) {
+      candidates.push_back({ true, 8002 });
+    } else if (port == 8002) {
+      candidates.push_back({ false, 8001 });
+    }
+  }
+
   String extractedToken = "";
-  bool finished = false;
+  unsigned long overallStart = millis();
 
-  client.onEvent([&](WStype_t type, uint8_t * pl, size_t length) {
-    if (type == WStype_CONNECTED) {
-      Serial.println("[TV] WS Pairing connected to: " + host);
-      if (handshakePayload.length() > 0) {
-        client.sendTXT((uint8_t*)handshakePayload.c_str(), handshakePayload.length());
-      }
-    } else if (type == WStype_TEXT && length > 0) {
-      String msg = String((char*)pl).substring(0, length);
-      Serial.println("[TV] WS Frame received: " + msg);
+  for (size_t cIdx = 0; cIdx < candidates.size(); cIdx++) {
+    bool curSsl = candidates[cIdx].ssl;
+    uint16_t curPort = candidates[cIdx].port;
+    Serial.printf("[TV] Initiating WS handshake to %s:%u (SSL: %s)\n", host.c_str(), curPort, curSsl ? "YES" : "NO");
 
-      JsonDocument doc;
-      DeserializationError err = deserializeJson(doc, msg);
-      if (!err) {
-        if (doc["data"]["token"].is<String>()) {
-          extractedToken = doc["data"]["token"].as<String>();
-          finished = true;
-        } else if (doc["payload"]["client-key"].is<String>()) {
-          extractedToken = doc["payload"]["client-key"].as<String>();
-          finished = true;
-        } else if (doc["token"].is<String>()) {
-          extractedToken = doc["token"].as<String>();
-          finished = true;
-        } else if (doc["key"].is<String>()) {
-          extractedToken = doc["key"].as<String>();
-          finished = true;
+    WebSocketsClient client;
+    bool connected = false;
+    bool finished = false;
+
+    client.onEvent([&](WStype_t type, uint8_t * pl, size_t length) {
+      if (type == WStype_CONNECTED) {
+        connected = true;
+        Serial.printf("[TV] WS Connected to %s:%u\n", host.c_str(), curPort);
+        if (handshakePayload.length() > 0) {
+          client.sendTXT((uint8_t*)handshakePayload.c_str(), handshakePayload.length());
         }
-      } else {
-        int tIdx = msg.indexOf("\"token\":\"");
-        if (tIdx >= 0) {
-          int endQ = msg.indexOf("\"", tIdx + 9);
-          if (endQ > tIdx) {
-            extractedToken = msg.substring(tIdx + 9, endQ);
+      } else if (type == WStype_TEXT && length > 0) {
+        String msg = String((char*)pl).substring(0, length);
+        Serial.println("[TV] WS Frame: " + msg);
+
+        JsonDocument doc;
+        DeserializationError err = deserializeJson(doc, msg);
+        if (!err) {
+          if (doc["data"]["token"].is<String>()) {
+            extractedToken = doc["data"]["token"].as<String>();
             finished = true;
+          } else if (doc["payload"]["client-key"].is<String>()) {
+            extractedToken = doc["payload"]["client-key"].as<String>();
+            finished = true;
+          } else if (doc["token"].is<String>()) {
+            extractedToken = doc["token"].as<String>();
+            finished = true;
+          } else if (doc["key"].is<String>()) {
+            extractedToken = doc["key"].as<String>();
+            finished = true;
+          }
+        } else {
+          int tIdx = msg.indexOf("\"token\":\"");
+          if (tIdx >= 0) {
+            int endQ = msg.indexOf("\"", tIdx + 9);
+            if (endQ > tIdx) {
+              extractedToken = msg.substring(tIdx + 9, endQ);
+              finished = true;
+            }
           }
         }
       }
+    });
+
+    if (curSsl) {
+      client.beginSSL(host.c_str(), curPort, path.c_str());
+    } else {
+      client.begin(host.c_str(), curPort, path.c_str());
     }
-  });
 
-  if (isWss) {
-    client.beginSSL(host.c_str(), port, path.c_str());
-  } else {
-    client.begin(host.c_str(), port, path.c_str());
+    unsigned long candStart = millis();
+    uint32_t waitLimit = (candidates.size() > 1 && cIdx == 0) ? 4500 : (timeoutMs - (millis() - overallStart));
+
+    while (millis() - candStart < waitLimit && millis() - overallStart < timeoutMs && !finished) {
+      client.loop();
+      if (connected) {
+        // Connected! User may need time to click Allow on screen
+        waitLimit = timeoutMs - (millis() - overallStart);
+      }
+      delay(20);
+    }
+
+    client.disconnect();
+
+    if (finished && extractedToken.length() > 0) {
+      Serial.println("[TV] Token received successfully: " + extractedToken);
+      break;
+    }
   }
 
-  unsigned long start = millis();
-  while (millis() - start < timeoutMs && !finished) {
-    client.loop();
-    delay(20);
-  }
-
-  client.disconnect();
   return extractedToken;
 }
 

@@ -428,7 +428,7 @@ async function identifyDevice(dev) {
     id: dev.id || `tv-${ip.replace(/\./g, '-')}`,
     name: dev.name && !dev.name.startsWith('Device') ? dev.name : `${matchedCatalog.name} (${ip})`,
     ip: ip,
-    port: dev.port && dev.port > 0 ? dev.port : matchedCatalog.defaultPort,
+    port: (dev.port && dev.port > 0 && dev.port !== 80) ? dev.port : matchedCatalog.defaultPort,
     brand: matchedCatalog.brand,
     protocol: matchedCatalog.protocol,
     catalogEntry: matchedCatalog
@@ -683,10 +683,14 @@ function renderStep3(body) {
   }
 
   // On-screen dialog authorization (Samsung Tizen, LG webOS)
+  const activePort = (selectedTv.port && selectedTv.port !== 80) ? selectedTv.port : selectedTv.catalogEntry.defaultPort;
   body.innerHTML = `
     <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:20px;text-align:center;">
       <div style="font-size:2.4rem;margin-bottom:8px;">&#x1F4FA;</div>
       <strong style="color:#60a5fa;font-size:1rem;display:block;margin-bottom:6px;">On-Screen Confirmation Required</strong>
+      <div style="display:inline-block;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:4px 12px;font-size:0.75rem;color:#38bdf8;margin-bottom:12px;">
+        Target: <strong>${selectedTv.name}</strong> &bull; IP: <strong>${selectedTv.ip}:${activePort}</strong>
+      </div>
       <p style="font-size:0.82rem;color:#94a3b8;line-height:1.4;margin-bottom:16px;">
         When you click <strong>Initiate TV Pairing</strong>, a prompt will appear on your TV screen asking:<br>
         <em style="color:#fff;font-weight:600;display:inline-block;margin-top:4px;">"Allow LilyGO Remote to connect?"</em><br>
@@ -789,9 +793,10 @@ async function initiateTvPairingHandshake() {
   }, 1000);
 
   const entry = selectedTv.catalogEntry;
+  const targetPort = (selectedTv.port && selectedTv.port !== 80) ? selectedTv.port : entry.defaultPort;
   const pairUrl = (entry.pairingUrl || entry.urlTemplate || '')
     .replace('{tv_ip}', selectedTv.ip)
-    .replace('{port}', selectedTv.port);
+    .replace('{port}', targetPort);
   const pairPayload = entry.pairingPayload || '';
 
   const baseUrl = getBaseApiUrl();
