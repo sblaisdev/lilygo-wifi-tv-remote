@@ -1714,17 +1714,35 @@ void setupRoutes() {
   });
 
   server.on("/api/profiles/upload", HTTP_POST, []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     String token = server.hasArg("token") ? server.arg("token") : server.header("X-Auth-Token");
+    bool isRedirect = (server.hasArg("redirect") && server.arg("redirect") == "1") || server.hasArg("profile_data");
+
     if (!verifyDeviceToken(token)) {
+      if (isRedirect) {
+        server.send(401, "text/html", "<h3>Pairing Authorization Required</h3><p>Please pair your device or open the designer from the setup portal.</p><p><a href='/'>Go back to Remote</a></p>");
+        return;
+      }
       server.send(401, "application/json", "{\"error\":\"Pairing authorization required to manage profiles\"}");
       return;
     }
-    String body = server.arg("plain");
-    if (body.length() == 0 && server.hasArg("json")) body = server.arg("json");
+
+    String body = "";
+    if (server.hasArg("profile_data") && server.arg("profile_data").length() > 0) {
+      body = server.arg("profile_data");
+    } else if (server.hasArg("plain") && server.arg("plain").length() > 0) {
+      body = server.arg("plain");
+    } else if (server.hasArg("json") && server.arg("json").length() > 0) {
+      body = server.arg("json");
+    }
 
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, body);
     if (err) {
+      if (isRedirect) {
+        server.send(400, "text/html", "<h3>Error: Invalid Profile JSON</h3><p><a href='/'>Go back to Remote</a></p>");
+        return;
+      }
       server.send(400, "application/json", "{\"error\":\"Invalid JSON format\"}");
       return;
     }
@@ -1733,11 +1751,20 @@ void setupRoutes() {
       id = "profile-" + String(millis());
     }
     if (saveProfile(id, body)) {
-      if (server.hasArg("set_active") && server.arg("set_active") == "1") {
+      if ((server.hasArg("set_active") && server.arg("set_active") == "1") || isRedirect) {
         setActiveProfile(id);
+      }
+      if (isRedirect) {
+        server.sendHeader("Location", "/?profile_saved=1");
+        server.send(302, "text/plain", "Redirecting to remote...");
+        return;
       }
       server.send(200, "application/json", "{\"status\":\"ok\",\"id\":\"" + id + "\"}");
     } else {
+      if (isRedirect) {
+        server.send(500, "text/html", "<h3>Error: Failed to save profile</h3><p><a href='/'>Go back to Remote</a></p>");
+        return;
+      }
       server.send(500, "application/json", "{\"error\":\"Failed to save profile\"}");
     }
   });
@@ -2049,8 +2076,16 @@ void setupRoutes() {
     }
   });
 
-  // Captive Portal Fallback: On unknown routes, redirect to root remote page if in AP mode
+  // Captive Portal Fallback & CORS Preflight: Handle OPTIONS and unknown routes
   server.onNotFound([]() {
+    if (server.method() == HTTP_OPTIONS) {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Auth-Token");
+      server.sendHeader("Access-Control-Allow-Private-Network", "true");
+      server.send(204);
+      return;
+    }
     if (isApMode || opMode == "ap") {
       server.sendHeader("Location", "http://192.168.4.1/");
       server.send(302, "text/plain", "Redirecting to remote...");

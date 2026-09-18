@@ -819,6 +819,16 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
 
     // Initialize layout
     renderProfile();
+
+    // Check if redirected from Designer save
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('profile_saved') === '1') {
+      const pName = (activeProfile && activeProfile.name) ? activeProfile.name : 'Remote';
+      setToast('🎉 Layout "' + pName + '" installed & activated!');
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
   </script>
 
 </body>
@@ -1148,8 +1158,12 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
           <button type="button" class="btn-submit" onclick="uploadProfileFile()" style="background: var(--accent); padding: 10px; margin-top: 0;">Upload Profile</button>
         </div>
 
-        <div style="text-align: center; margin-top: 14px;">
-          <a href="https://sblaisdev.github.io/lilygo-wifi-tv-remote/" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.85rem; font-weight: 600; text-decoration: none;">&#x2728; Open Layout &amp; Macro Designer (GitHub Pages) &rarr;</a>
+        <div style="margin-top: 14px;">
+          <button type="button" class="btn-submit" onclick="openDesignerOnline()" style="background: #8b5cf6; padding: 12px; margin-top: 0; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+            <span>&#x2728;</span>
+            <span>Open Layout &amp; Macro Designer (GitHub Pages)</span>
+            <span>&rarr;</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1347,6 +1361,14 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         }
       };
       reader.readAsText(file);
+    }
+
+    function openDesignerOnline() {
+      const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+      const token = localStorage.getItem('tv_remote_token') || '';
+      let url = 'https://sblaisdev.github.io/lilygo-wifi-tv-remote/?dongle=' + encodeURIComponent(origin);
+      if (token) url += '&token=' + encodeURIComponent(token);
+      window.open(url, '_blank');
     }
 
     let availableReleases = [];

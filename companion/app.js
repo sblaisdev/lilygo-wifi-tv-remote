@@ -372,6 +372,7 @@ const I18N = {
     loadingFromDongle: "Fetching active layout from LilyGO...",
     loadSuccessToast: "Active profile loaded from LilyGO! 🎉",
     loadFailedAlert: "Could not load profile from LilyGO at {host}.",
+    deployBridgeToast: "Sending layout to dongle...",
   },
   fr: {
     langBtn: "🇬🇧 EN",
@@ -527,6 +528,7 @@ const I18N = {
     loadingFromDongle: "Récupération de la disposition active du LilyGO...",
     loadSuccessToast: "Profil actif chargé depuis le LilyGO ! 🎉",
     loadFailedAlert: "Impossible de charger le profil depuis le LilyGO à {host}.",
+    deployBridgeToast: "Envoi de la disposition au dongle...",
   }
 };
 
@@ -616,17 +618,29 @@ let profile = JSON.parse(JSON.stringify(TEMPLATES.tv));
 let currentPageIdx = 0;
 let selectedBtnIdx = null;
 
-function dismissHttpsBanner() {
-  const banner = document.getElementById('httpsBanner');
-  if (banner) banner.style.display = 'none';
-  localStorage.setItem('lilygo_https_banner_dismissed', '1');
-}
-
 // Initialize on Load
 window.addEventListener('DOMContentLoaded', () => {
-  if (window.location.protocol === 'https:' && !localStorage.getItem('lilygo_https_banner_dismissed')) {
-    const banner = document.getElementById('httpsBanner');
-    if (banner) banner.style.display = 'flex';
+  // Check for query parameters (?dongle=...&token=...) from dongle setup portal
+  const urlParams = new URLSearchParams(window.location.search);
+  const dongleParam = urlParams.get('dongle');
+  const tokenParam = urlParams.get('token');
+
+  if (dongleParam) {
+    let cleanDongle = dongleParam.trim();
+    if (!cleanDongle.startsWith('http://') && !cleanDongle.startsWith('https://')) {
+      cleanDongle = 'http://' + cleanDongle;
+    }
+    document.getElementById('targetHost').value = cleanDongle;
+    localStorage.setItem('lilygo_target_host', cleanDongle);
+  } else {
+    const savedHost = localStorage.getItem('lilygo_target_host');
+    if (savedHost) {
+      document.getElementById('targetHost').value = savedHost;
+    }
+  }
+
+  if (tokenParam) {
+    localStorage.setItem('tv_remote_token', tokenParam.trim());
   }
 
   // Language Auto-Detection & Initialization
@@ -648,10 +662,6 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       console.warn('Using default template');
     }
-  }
-  const savedHost = localStorage.getItem('lilygo_target_host');
-  if (savedHost) {
-    document.getElementById('targetHost').value = savedHost;
   }
   renderApp();
   checkConnection();
@@ -1393,39 +1403,43 @@ async function deployViaUsb() {
   }
 }
 
-async function deployToDongle() {
+function deployToDongle() {
   const host = getTargetHost();
-
-  if (window.location.protocol === 'https:' && host.startsWith('http://')) {
-    alert(t('httpsMixedContentAlert'));
-    return;
-  }
-
   const token = localStorage.getItem('tv_remote_token') || '';
 
-  if (!token) {
-    if (confirm(t('tokenNotFoundConfirm'))) {
-      openPairModal();
-    }
-    return;
+  // Form POST Bridge: Submitting a form with target="_blank" is treated as top-level navigation
+  // by web browsers and completely bypasses HTTPS mixed-content restrictions.
+  const form = document.createElement('form');
+  form.method = 'POST';
+  let actionUrl = `${host.replace(/\/+$/, '')}/api/profiles/upload?set_active=1&redirect=1`;
+  if (token) {
+    actionUrl += `&token=${encodeURIComponent(token)}`;
+  }
+  form.action = actionUrl;
+  form.target = '_blank';
+  form.style.display = 'none';
+
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'profile_data';
+  input.value = JSON.stringify(profile);
+  form.appendChild(input);
+
+  if (token) {
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'hidden';
+    tokenInput.name = 'token';
+    tokenInput.value = token;
+    form.appendChild(tokenInput);
   }
 
-  try {
-    const res = await fetch(`${host}/api/profiles/upload?set_active=1&token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profile)
-    });
-    const data = await res.json();
-    if (data.status === 'ok') {
-      alert(t('deploySuccessAlert').replace('{name}', profile.name));
-    } else {
-      alert(t('deployFailedAlert') + (data.error || 'Pairing token rejected. Re-pair device.'));
-    }
-  } catch (e) {
-    alert(t('cannotConnectAlert').replace('{host}', host));
-  }
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(() => {
+    try { document.body.removeChild(form); } catch (_) {}
+  }, 1000);
+
+  showToast(t('deployBridgeToast') || `Sending "${profile.name}" to dongle...`);
 }
 
 // Live Test Button on Dongle
