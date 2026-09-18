@@ -1291,7 +1291,7 @@ void handleKeyCommand(const String& key) {
   Serial.printf("[HID] Dispatched key: %s (status: %u)\n", key.c_str(), (unsigned)p);
 }
 
-// Smart TV Wi-Fi API Command Dispatcher with Smart Hybrid Fallback
+// Generic Smart TV / Device Action Dispatcher with Smart Hybrid Fallback
 void handleTvApiCommand(const String& payload) {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload);
@@ -1301,18 +1301,18 @@ void handleTvApiCommand(const String& payload) {
   }
 
   String cmd = doc["cmd"].as<String>();
-  String params = doc["params"].as<String>();
+  String transport = doc["transport"].as<String>();
+  String url = doc["url"].as<String>();
+  String method = doc["method"].as<String>();
+  String headers = doc["headers"].as<String>();
+  String actionPayload = doc["payload"].as<String>();
   bool fallbackHid = doc["fallbackHid"] | false;
 
-  // Query active profile to determine TV protocol and IP
+  // Query active profile for TV connection context
   String activeProfileJson = getActiveProfileJson();
   JsonDocument profDoc;
   deserializeJson(profDoc, activeProfileJson);
 
-  String protocol = profDoc["tvProtocol"].as<String>();
-  if (doc.containsKey("brand") && doc["brand"].as<String>().length() > 0) {
-    protocol = doc["brand"].as<String>();
-  }
   String ip = profDoc["tvIp"].as<String>();
   if (doc.containsKey("ip") && doc["ip"].as<String>().length() > 0) {
     ip = doc["ip"].as<String>();
@@ -1326,13 +1326,27 @@ void handleTvApiCommand(const String& payload) {
 
   String token = tvController.getTvToken(tvId);
 
+  // Dynamic template substitutions ({tv_ip}, {token}, {port})
+  if (ip.length() > 0) {
+    url.replace("{tv_ip}", ip);
+    actionPayload.replace("{tv_ip}", ip);
+  }
+  if (token.length() > 0) {
+    url.replace("{token}", token);
+    headers.replace("{token}", token);
+    actionPayload.replace("{token}", token);
+  }
+  if (port > 0) {
+    url.replace("{port}", String(port));
+  }
+
   bool success = false;
-  if (protocol.length() > 0 && ip.length() > 0) {
-    success = tvController.sendTvCommand(protocol, ip, port, token, cmd, params);
+  if (transport.length() > 0 && url.length() > 0) {
+    success = tvController.executeNetworkAction(transport, url, method, headers, actionPayload);
   }
 
   if (!success && fallbackHid) {
-    Serial.println("[TV] Wi-Fi command failed or unconfigured, falling back to USB HID: " + cmd);
+    Serial.println("[TV] Generic network action failed or unconfigured, falling back to USB HID: " + cmd);
     handleKeyCommand(cmd);
   }
 }
@@ -1789,32 +1803,47 @@ void setupRoutes() {
   });
 
   // ==========================================
-  // Smart TV Wi-Fi API Endpoints
+  // Smart TV & Device Generic Network Endpoints
   // ==========================================
   server.on("/api/tv/discover", HTTP_GET, []() {
     String json = tvController.discoverTvsJson();
     server.send(200, "application/json", json);
   });
 
-  server.on("/api/tv/command", HTTP_POST, []() {
-    String cmd = server.hasArg("cmd") ? server.arg("cmd") : "";
-    String protocol = server.hasArg("protocol") ? server.arg("protocol") : "";
+  server.on("/api/tv/probe", HTTP_GET, []() {
     String ip = server.hasArg("ip") ? server.arg("ip") : "";
-    uint16_t port = server.hasArg("port") ? server.arg("port").toInt() : 0;
-    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "default-tv";
-    String params = server.hasArg("params") ? server.arg("params") : "";
+    uint16_t port = server.hasArg("port") ? server.arg("port").toInt() : 80;
+    String path = server.hasArg("path") ? server.arg("path") : "/";
 
-    if (cmd.length() == 0 || protocol.length() == 0 || ip.length() == 0) {
-      server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing required parameters\"}");
+    if (ip.length() == 0) {
+      server.send(400, "application/json", "{\"error\":\"Missing ip parameter\"}");
       return;
     }
 
+    String result = tvController.probeDevice(ip, port, path);
+    server.send(200, "application/json", result);
+  });
+
+  server.on("/api/tv/command", HTTP_POST, []() {
+    String transport = server.hasArg("transport") ? server.arg("transport") : "http";
+    String url = server.hasArg("url") ? server.arg("url") : "";
+    String method = server.hasArg("method") ? server.arg("method") : "POST";
+    String headers = server.hasArg("headers") ? server.arg("headers") : "";
+    String payload = server.hasArg("payload") ? server.arg("payload") : "";
+    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "default-tv";
+
     String token = tvController.getTvToken(tvId);
-    bool ok = tvController.sendTvCommand(protocol, ip, port, token, cmd, params);
+    if (token.length() > 0) {
+      url.replace("{token}", token);
+      headers.replace("{token}", token);
+      payload.replace("{token}", token);
+    }
+
+    bool ok = tvController.executeNetworkAction(transport, url, method, headers, payload);
     if (ok) {
       server.send(200, "application/json", "{\"status\":\"ok\"}");
     } else {
-      server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Command execution failed\"}");
+      server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Generic action execution failed\"}");
     }
   });
 
@@ -1912,6 +1941,26 @@ void setupRoutes() {
     String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "";
     bool exists = tvController.hasTvToken(tvId);
     server.send(200, "application/json", String("{\"has_token\":") + (exists ? "true" : "false") + "}");
+  });
+
+  server.on("/api/tv/pair", HTTP_POST, []() {
+    String url = server.hasArg("url") ? server.arg("url") : "";
+    String payload = server.hasArg("payload") ? server.arg("payload") : "";
+    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "default-tv";
+    uint32_t timeoutMs = server.hasArg("timeout") ? server.arg("timeout").toInt() : 25000;
+
+    if (url.length() == 0) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing url\"}");
+      return;
+    }
+
+    String token = tvController.listenForWsToken(url, payload, timeoutMs);
+    if (token.length() > 0) {
+      tvController.saveTvToken(tvId, token);
+      server.send(200, "application/json", "{\"status\":\"ok\",\"token\":\"" + token + "\"}");
+    } else {
+      server.send(408, "application/json", "{\"status\":\"timeout\",\"message\":\"No authorization received from TV\"}");
+    }
   });
 
   // ==========================================

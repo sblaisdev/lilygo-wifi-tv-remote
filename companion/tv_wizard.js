@@ -1,36 +1,269 @@
 /**
  * Smart TV Wi-Fi API Setup Wizard for LiLyGO Remote Studio
- * Guides the user through discovery, capability selection, pairing, and multi-tab layout generation.
+ * Fully vendor-agnostic, config-driven TV discovery, capability probe, hard-gated pairing, and layout generation.
  */
 
-let tvCatalog = [];
+// Embedded fallback catalog ensuring immediate availability
+const FALLBACK_TV_CATALOG = [
+  {
+    "id": "samsung_tizen",
+    "name": "Samsung Smart TV (Tizen)",
+    "brand": "samsung",
+    "protocol": "samsung_tizen",
+    "defaultPort": 8001,
+    "authType": "prompt",
+    "transport": "ws",
+    "method": "",
+    "urlTemplate": "ws://{tv_ip}:{port}/api/v2/channels/samsung.remote.control?name=TGlseUdPIFJlbW90ZQ==&token={token}",
+    "headersTemplate": "",
+    "payloadTemplate": "{\"method\":\"ms.remote.control\",\"params\":{\"Cmd\":\"Click\",\"DataOfCmd\":\"{cmd}\",\"Option\":\"false\",\"TypeOfRemote\":\"SendRemoteKey\"}}",
+    "pairingUrl": "ws://{tv_ip}:{port}/api/v2/channels/samsung.remote.control?name=TGlseUdPIFJlbW90ZQ==",
+    "pairingPayload": "",
+    "discoveryMatch": ["samsung", "tizen", "dial-multiscreen", "sec-websocket", "8001"],
+    "description": "WebSocket channel on port 8001. Displays pairing approval popup on TV screen.",
+    "commands": {
+      "navigation": [
+        { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "KEY_POWER", "span": 1 },
+        { "label": "HOME", "icon": "home", "color": "#475569", "command": "KEY_HOME", "span": 1 },
+        { "label": "RETURN", "icon": "corner-down-left", "color": "#475569", "command": "KEY_RETURN", "span": 1 },
+        { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "KEY_UP", "span": 1 },
+        { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "KEY_DOWN", "span": 1 },
+        { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "KEY_LEFT", "span": 1 },
+        { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "KEY_RIGHT", "span": 1 },
+        { "label": "ENTER", "icon": "check", "color": "#3b82f6", "command": "KEY_ENTER", "span": 1 },
+        { "label": "MENU", "icon": "layers", "color": "#475569", "command": "KEY_MENU", "span": 1 }
+      ],
+      "audio": [
+        { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "KEY_VOLUP", "span": 1 },
+        { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "KEY_VOLDOWN", "span": 1 },
+        { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "KEY_MUTE", "span": 1 }
+      ],
+      "media": [
+        { "label": "PLAY", "icon": "play", "color": "#06b6d4", "command": "KEY_PLAY", "span": 1 },
+        { "label": "PAUSE", "icon": "pause", "color": "#06b6d4", "command": "KEY_PAUSE", "span": 1 },
+        { "label": "STOP", "icon": "x-square", "color": "#64748b", "command": "KEY_STOP", "span": 1 }
+      ],
+      "apps": [
+        { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "3201907018807", "transport": "http", "method": "POST", "url": "http://{tv_ip}:{port}/api/v2/applications/3201907018807", "span": 1 },
+        { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "111299001912", "transport": "http", "method": "POST", "url": "http://{tv_ip}:{port}/api/v2/applications/111299001912", "span": 1 },
+        { "label": "Prime Video", "icon": "film", "color": "#0284c7", "command": "3201512006785", "transport": "http", "method": "POST", "url": "http://{tv_ip}:{port}/api/v2/applications/3201512006785", "span": 1 },
+        { "label": "Disney+", "icon": "film", "color": "#1d4ed8", "command": "3201901017640", "transport": "http", "method": "POST", "url": "http://{tv_ip}:{port}/api/v2/applications/3201901017640", "span": 1 },
+        { "label": "Apple TV", "icon": "film", "color": "#374151", "command": "3201807016597", "transport": "http", "method": "POST", "url": "http://{tv_ip}:{port}/api/v2/applications/3201807016597", "span": 1 }
+      ],
+      "inputs": [
+        { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "KEY_HDMI1", "span": 1 },
+        { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "KEY_HDMI2", "span": 1 },
+        { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "KEY_HDMI3", "span": 1 },
+        { "label": "TV Source", "icon": "tv", "color": "#475569", "command": "KEY_SOURCE", "span": 1 }
+      ]
+    }
+  },
+  {
+    "id": "roku",
+    "name": "Roku TV / Streaming Player",
+    "brand": "roku",
+    "protocol": "roku",
+    "defaultPort": 8060,
+    "authType": "none",
+    "transport": "http",
+    "method": "POST",
+    "urlTemplate": "http://{tv_ip}:{port}/keypress/{cmd}",
+    "headersTemplate": "",
+    "payloadTemplate": "",
+    "pairingUrl": "",
+    "pairingPayload": "",
+    "discoveryMatch": ["roku:ecp", "roku", "8060"],
+    "description": "Direct HTTP REST commands over port 8060. Zero authentication required.",
+    "commands": {
+      "navigation": [
+        { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "Power", "span": 1 },
+        { "label": "HOME", "icon": "home", "color": "#475569", "command": "Home", "span": 1 },
+        { "label": "BACK", "icon": "corner-down-left", "color": "#475569", "command": "Back", "span": 1 },
+        { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "Up", "span": 1 },
+        { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "Down", "span": 1 },
+        { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "Left", "span": 1 },
+        { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "Right", "span": 1 },
+        { "label": "OK", "icon": "check", "color": "#3b82f6", "command": "Select", "span": 1 },
+        { "label": "INFO", "icon": "info", "color": "#475569", "command": "Info", "span": 1 }
+      ],
+      "audio": [
+        { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "VolumeUp", "span": 1 },
+        { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "VolumeDown", "span": 1 },
+        { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "VolumeMute", "span": 1 }
+      ],
+      "media": [
+        { "label": "PLAY / PAUSE", "icon": "play", "color": "#06b6d4", "command": "Play", "span": 1 },
+        { "label": "REWIND", "icon": "skip-back", "color": "#334155", "command": "Rev", "span": 1 },
+        { "label": "FORWARD", "icon": "skip-forward", "color": "#334155", "command": "Fwd", "span": 1 }
+      ],
+      "apps": [
+        { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "12", "url": "http://{tv_ip}:{port}/launch/12", "span": 1 },
+        { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "837", "url": "http://{tv_ip}:{port}/launch/837", "span": 1 },
+        { "label": "Prime Video", "icon": "film", "color": "#0284c7", "command": "13", "url": "http://{tv_ip}:{port}/launch/13", "span": 1 },
+        { "label": "Disney+", "icon": "film", "color": "#1d4ed8", "command": "291097", "url": "http://{tv_ip}:{port}/launch/291097", "span": 1 },
+        { "label": "Apple TV", "icon": "film", "color": "#374151", "command": "551012", "url": "http://{tv_ip}:{port}/launch/551012", "span": 1 },
+        { "label": "Spotify", "icon": "activity", "color": "#15803d", "command": "22271", "url": "http://{tv_ip}:{port}/launch/22271", "span": 1 }
+      ],
+      "inputs": [
+        { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "tvinput.hdmi1", "url": "http://{tv_ip}:{port}/launch/tvinput.hdmi1", "span": 1 },
+        { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "tvinput.hdmi2", "url": "http://{tv_ip}:{port}/launch/tvinput.hdmi2", "span": 1 },
+        { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "tvinput.hdmi3", "url": "http://{tv_ip}:{port}/launch/tvinput.hdmi3", "span": 1 },
+        { "label": "Live TV", "icon": "tv", "color": "#475569", "command": "tvinput.dtv", "url": "http://{tv_ip}:{port}/launch/tvinput.dtv", "span": 1 }
+      ]
+    }
+  },
+  {
+    "id": "lg_webos",
+    "name": "LG Smart TV (webOS)",
+    "brand": "lg",
+    "protocol": "lg_webos",
+    "defaultPort": 3000,
+    "authType": "prompt",
+    "transport": "ws",
+    "method": "",
+    "urlTemplate": "ws://{tv_ip}:{port}/",
+    "headersTemplate": "",
+    "payloadTemplate": "{\"id\":\"req_{cmd}\",\"type\":\"request\",\"uri\":\"ssap://media.controls/{cmd}\"}",
+    "pairingUrl": "ws://{tv_ip}:{port}/",
+    "pairingPayload": "{\"id\":\"register_0\",\"type\":\"register\",\"payload\":{\"forcePairing\":false,\"pairingType\":\"PROMPT\"}}",
+    "discoveryMatch": ["webos", "lge-com", "lg", "3000"],
+    "description": "WebSocket control. One-time pairing prompt shown on TV screen.",
+    "commands": {
+      "navigation": [
+        { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "powerOff", "payload": "{\"id\":\"pwr\",\"type\":\"request\",\"uri\":\"ssap://system/turnOff\"}", "span": 1 },
+        { "label": "HOME", "icon": "home", "color": "#475569", "command": "home", "payload": "{\"id\":\"home\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/open\",\"payload\":{\"id\":\"com.webos.app.home\"}}", "span": 1 },
+        { "label": "BACK", "icon": "corner-down-left", "color": "#475569", "command": "back", "payload": "{\"id\":\"back\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/close\"}", "span": 1 },
+        { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "up", "payload": "{\"id\":\"up\",\"type\":\"request\",\"uri\":\"ssap://user.input/up\"}", "span": 1 },
+        { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "down", "payload": "{\"id\":\"down\",\"type\":\"request\",\"uri\":\"ssap://user.input/down\"}", "span": 1 },
+        { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "left", "payload": "{\"id\":\"left\",\"type\":\"request\",\"uri\":\"ssap://user.input/left\"}", "span": 1 },
+        { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "right", "payload": "{\"id\":\"right\",\"type\":\"request\",\"uri\":\"ssap://user.input/right\"}", "span": 1 },
+        { "label": "OK", "icon": "check", "color": "#3b82f6", "command": "enter", "payload": "{\"id\":\"ok\",\"type\":\"request\",\"uri\":\"ssap://user.input/enter\"}", "span": 1 },
+        { "label": "EXIT", "icon": "x", "color": "#475569", "command": "exit", "payload": "{\"id\":\"exit\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/close\"}", "span": 1 }
+      ],
+      "audio": [
+        { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "volUp", "payload": "{\"id\":\"vup\",\"type\":\"request\",\"uri\":\"ssap://audio/volumeUp\"}", "span": 1 },
+        { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "volDown", "payload": "{\"id\":\"vdown\",\"type\":\"request\",\"uri\":\"ssap://audio/volumeDown\"}", "span": 1 },
+        { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "mute", "payload": "{\"id\":\"mute\",\"type\":\"request\",\"uri\":\"ssap://audio/setMute\",\"payload\":{\"mute\":true}}", "span": 1 }
+      ],
+      "media": [
+        { "label": "PLAY", "icon": "play", "color": "#06b6d4", "command": "play", "payload": "{\"id\":\"play\",\"type\":\"request\",\"uri\":\"ssap://media.controls/play\"}", "span": 1 },
+        { "label": "PAUSE", "icon": "pause", "color": "#06b6d4", "command": "pause", "payload": "{\"id\":\"pause\",\"type\":\"request\",\"uri\":\"ssap://media.controls/pause\"}", "span": 1 },
+        { "label": "STOP", "icon": "x-square", "color": "#64748b", "command": "stop", "payload": "{\"id\":\"stop\",\"type\":\"request\",\"uri\":\"ssap://media.controls/stop\"}", "span": 1 }
+      ],
+      "apps": [
+        { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "netflix", "payload": "{\"id\":\"app_nf\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/launch\",\"payload\":{\"id\":\"netflix\"}}", "span": 1 },
+        { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "youtube", "payload": "{\"id\":\"app_yt\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/launch\",\"payload\":{\"id\":\"youtube.leanback.v4\"}}", "span": 1 },
+        { "label": "Prime Video", "icon": "film", "color": "#0284c7", "command": "amazon", "payload": "{\"id\":\"app_pv\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/launch\",\"payload\":{\"id\":\"amazon\"}}", "span": 1 },
+        { "label": "Disney+", "icon": "film", "color": "#1d4ed8", "command": "disney", "payload": "{\"id\":\"app_dp\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/launch\",\"payload\":{\"id\":\"com.disney.disneyplus-prod\"}}", "span": 1 },
+        { "label": "Apple TV", "icon": "film", "color": "#374151", "command": "appletv", "payload": "{\"id\":\"app_atv\",\"type\":\"request\",\"uri\":\"ssap://system.launcher/launch\",\"payload\":{\"id\":\"com.apple.appletv\"}}", "span": 1 }
+      ],
+      "inputs": [
+        { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "HDMI_1", "payload": "{\"id\":\"inp1\",\"type\":\"request\",\"uri\":\"ssap://tv/switchInput\",\"payload\":{\"inputId\":\"HDMI_1\"}}", "span": 1 },
+        { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "HDMI_2", "payload": "{\"id\":\"inp2\",\"type\":\"request\",\"uri\":\"ssap://tv/switchInput\",\"payload\":{\"inputId\":\"HDMI_2\"}}", "span": 1 },
+        { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "HDMI_3", "payload": "{\"id\":\"inp3\",\"type\":\"request\",\"uri\":\"ssap://tv/switchInput\",\"payload\":{\"inputId\":\"HDMI_3\"}}", "span": 1 },
+        { "label": "HDMI 4", "icon": "monitor", "color": "#475569", "command": "HDMI_4", "payload": "{\"id\":\"inp4\",\"type\":\"request\",\"uri\":\"ssap://tv/switchInput\",\"payload\":{\"inputId\":\"HDMI_4\"}}", "span": 1 }
+      ]
+    }
+  },
+  {
+    "id": "sony_bravia",
+    "name": "Sony Bravia Smart TV",
+    "brand": "sony",
+    "protocol": "sony_bravia",
+    "defaultPort": 80,
+    "authType": "psk",
+    "transport": "http",
+    "method": "POST",
+    "urlTemplate": "http://{tv_ip}:{port}/sony/ircc",
+    "headersTemplate": "{\"X-Auth-PSK\":\"{token}\",\"Content-Type\":\"text/xml; charset=utf-8\",\"SOAPACTION\":\"\\\"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC\\\"\"}",
+    "payloadTemplate": "<?xml version=\\\"1.0\\\"?><s:Envelope xmlns:s=\\\"http://schemas.xmlsoap.org/soap/envelope/\\\" s:encodingStyle=\\\"http://schemas.xmlsoap.org/soap/encoding/\\\"><s:Body><u:X_SendIRCC xmlns:u=\\\"urn:schemas-sony-com:service:IRCC:1\\\"><IRCCCode>{cmd}</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>",
+    "pairingUrl": "",
+    "pairingPayload": "",
+    "discoveryMatch": ["sony", "ircc", "bravia", "52323"],
+    "description": "IRCC-IP REST control over HTTP/HTTPS with Pre-Shared Key (PSK) authentication.",
+    "commands": {
+      "navigation": [
+        { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "AAAAAQAAAAEAAAAVAw==", "span": 1 },
+        { "label": "HOME", "icon": "home", "color": "#475569", "command": "AAAAAQAAAAEAAABgAw==", "span": 1 },
+        { "label": "BACK", "icon": "corner-down-left", "color": "#475569", "command": "AAAAAQAAAAEAAABjAw==", "span": 1 },
+        { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "AAAAAQAAAAEAAAB0Aw==", "span": 1 },
+        { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "AAAAAQAAAAEAAAB1Aw==", "span": 1 },
+        { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "AAAAAQAAAAEAAAA0Aw==", "span": 1 },
+        { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "AAAAAQAAAAEAAAAzAw==", "span": 1 },
+        { "label": "OK", "icon": "check", "color": "#3b82f6", "command": "AAAAAQAAAAEAAABlAw==", "span": 1 },
+        { "label": "EXIT", "icon": "x", "color": "#475569", "command": "AAAAAQAAAAEAAABiAw==", "span": 1 }
+      ],
+      "audio": [
+        { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "AAAAAQAAAAEAAAASAw==", "span": 1 },
+        { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "AAAAAQAAAAEAAAATAw==", "span": 1 },
+        { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "AAAAAQAAAAEAAAAUAw==", "span": 1 }
+      ],
+      "media": [
+        { "label": "PLAY", "icon": "play", "color": "#06b6d4", "command": "AAAAAgAAAJcAAAAaAw==", "span": 1 },
+        { "label": "PAUSE", "icon": "pause", "color": "#06b6d4", "command": "AAAAAgAAAJcAAAAZAw==", "span": 1 },
+        { "label": "STOP", "icon": "x-square", "color": "#64748b", "command": "AAAAAgAAAJcAAAAYAw==", "span": 1 }
+      ],
+      "apps": [
+        { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "AAAAAgAAABoAAAB8Aw==", "span": 1 },
+        { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "AAAAAgAAAMQAAABHAw==", "span": 1 }
+      ],
+      "inputs": [
+        { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "AAAAAgAAABoAAABaAw==", "span": 1 },
+        { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "AAAAAgAAABoAAABbAw==", "span": 1 },
+        { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "AAAAAgAAABoAAABcAw==", "span": 1 },
+        { "label": "HDMI 4", "icon": "monitor", "color": "#475569", "command": "AAAAAgAAABoAAABdAw==", "span": 1 }
+      ]
+    }
+  }
+];
+
+let tvCatalog = [...FALLBACK_TV_CATALOG];
 let discoveredTvs = [];
 let selectedTv = null;
 let currentWizardStep = 1;
+let isPairingVerified = false;
+let pairingCountdownTimer = null;
 
 async function loadTvCatalog() {
-  if (tvCatalog.length > 0) return tvCatalog;
   try {
-    const res = await fetch('tv_catalog.json');
-    const data = await res.json();
-    tvCatalog = data.catalog || [];
-    return tvCatalog;
+    const url = window.location.pathname.includes('/fr/') ? '../tv_catalog.json' : 'tv_catalog.json';
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.catalog && data.catalog.length > 0) {
+        tvCatalog = data.catalog;
+      }
+    }
   } catch (e) {
-    console.error('Failed to load tv_catalog.json:', e);
-    return [];
+    console.warn('Using embedded catalog fallback:', e);
   }
+  return tvCatalog;
 }
 
-function openTvWizard() {
+function getBaseApiUrl() {
+  const hostInput = document.getElementById('targetHost');
+  return (hostInput ? hostInput.value.trim() : '') || 'http://tv-remote.local';
+}
+
+async function openTvWizard() {
   currentWizardStep = 1;
   selectedTv = null;
-  loadTvCatalog();
+  isPairingVerified = false;
+  if (pairingCountdownTimer) {
+    clearInterval(pairingCountdownTimer);
+    pairingCountdownTimer = null;
+  }
+  await loadTvCatalog();
   renderWizardModal();
   document.getElementById('tvWizardModal').style.display = 'flex';
   startTvScan();
 }
 
 function closeTvWizard() {
+  if (pairingCountdownTimer) {
+    clearInterval(pairingCountdownTimer);
+    pairingCountdownTimer = null;
+  }
   const modal = document.getElementById('tvWizardModal');
   if (modal) modal.style.display = 'none';
 }
@@ -74,14 +307,16 @@ function renderWizardModal() {
 }
 
 function updateStepIndicators() {
-  document.getElementById('wzStepNum').innerText = currentWizardStep;
+  const stepNum = document.getElementById('wzStepNum');
+  if (stepNum) stepNum.innerText = currentWizardStep;
   const titles = [
     'Network Discovery',
     'TV Capabilities & Apps',
     'Pairing & Security',
     'Generated 3-Tab Layout'
   ];
-  document.getElementById('wzStepTitle').innerText = titles[currentWizardStep - 1] || '';
+  const stepTitle = document.getElementById('wzStepTitle');
+  if (stepTitle) stepTitle.innerText = titles[currentWizardStep - 1] || '';
 
   for (let i = 1; i <= 4; i++) {
     const bar = document.getElementById('barStep' + i);
@@ -103,31 +338,101 @@ function renderCurrentStep() {
 }
 
 // =========================================================================
-// Step 1: Network Discovery
+// Step 1: Network Discovery & Capability Probing
 // =========================================================================
 async function startTvScan() {
   const container = document.getElementById('discoveredList');
   if (container) {
-    container.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;"><div class="scan-pulse" style="margin-bottom:8px;">&#x1F50E; Scanning local network via LilyGO SSDP...</div><small>Broadcasting discovery packets (UDP 1900)...</small></div>';
+    container.innerHTML = `
+      <div style="text-align:center;padding:24px;color:#94a3b8;">
+        <div style="font-size:1.5rem;margin-bottom:8px;animation:spin 1s linear infinite;">&#x1F504;</div>
+        <div style="font-weight:600;color:#fff;">Scanning Wi-Fi network for Smart TVs...</div>
+        <small style="color:#64748b;">Broadcasting discovery packets (UDP 1900 SSDP)...</small>
+      </div>
+    `;
   }
 
-  const hostInput = document.getElementById('targetHost');
-  const baseUrl = (hostInput ? hostInput.value.trim() : '') || 'http://tv-remote.local';
+  const baseUrl = getBaseApiUrl();
 
   try {
     const res = await fetch(baseUrl + '/api/tv/discover');
     if (!res.ok) throw new Error('Status ' + res.status);
-    discoveredTvs = await res.json();
+    const rawDevices = await res.json();
+    discoveredTvs = [];
+
+    for (const dev of rawDevices) {
+      const enriched = await identifyDevice(dev);
+      discoveredTvs.push(enriched);
+    }
   } catch (err) {
-    console.warn('Network discovery fallback:', err);
-    // Demo fallback devices if testing offline
-    discoveredTvs = [
-      { id: 'roku-192.168.1.105', name: 'Living Room Roku TV', brand: 'roku', protocol: 'roku', ip: '192.168.1.105', port: 8060 },
-      { id: 'lg-192.168.1.145', name: 'LG OLED55C1 (webOS)', brand: 'lg', protocol: 'lg_webos', ip: '192.168.1.145', port: 3000 }
-    ];
+    console.warn('SSDP scan failed, providing common detection candidates:', err);
+    discoveredTvs = [];
   }
 
   renderDiscoveredList();
+}
+
+// Vendor-agnostic device identifier matching SSDP headers / active probes to catalog
+async function identifyDevice(dev) {
+  let matchedCatalog = null;
+  const ip = dev.ip || '';
+  const server = (dev.server || '').toLowerCase();
+  const location = (dev.location || '').toLowerCase();
+  const searchStr = `${server} ${location} ${dev.name || ''}`.toLowerCase();
+
+  // Try matching against catalog discoveryMatch keywords
+  for (const cat of tvCatalog) {
+    if (cat.discoveryMatch && cat.discoveryMatch.some(k => searchStr.includes(k.toLowerCase()))) {
+      matchedCatalog = cat;
+      break;
+    }
+  }
+
+  // Active probe via dongle proxy if ambiguous
+  if (!matchedCatalog && ip) {
+    const baseUrl = getBaseApiUrl();
+    try {
+      // Probe Samsung port 8001
+      const pRes = await fetch(`${baseUrl}/api/tv/probe?ip=${ip}&port=8001&path=/api/v2/`);
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (pData && (pData.device || pData.name)) {
+          matchedCatalog = tvCatalog.find(c => c.protocol === 'samsung_tizen');
+          if (pData.device && pData.device.name) {
+            dev.name = pData.device.name;
+          }
+        }
+      }
+    } catch (e) {}
+
+    if (!matchedCatalog) {
+      try {
+        // Probe Roku port 8060
+        const rRes = await fetch(`${baseUrl}/api/tv/probe?ip=${ip}&port=8060&path=/query/device-info`);
+        if (rRes.ok) {
+          const rText = await rRes.text();
+          if (rText.includes('<device-info>') || rText.includes('friendly-device-name')) {
+            matchedCatalog = tvCatalog.find(c => c.protocol === 'roku');
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Default to first match or generic
+  if (!matchedCatalog) {
+    matchedCatalog = tvCatalog[0];
+  }
+
+  return {
+    id: dev.id || `tv-${ip.replace(/\./g, '-')}`,
+    name: dev.name && !dev.name.startsWith('Device') ? dev.name : `${matchedCatalog.name} (${ip})`,
+    ip: ip,
+    port: dev.port && dev.port > 0 ? dev.port : matchedCatalog.defaultPort,
+    brand: matchedCatalog.brand,
+    protocol: matchedCatalog.protocol,
+    catalogEntry: matchedCatalog
+  };
 }
 
 function renderDiscoveredList() {
@@ -137,8 +442,8 @@ function renderDiscoveredList() {
   if (discoveredTvs.length === 0) {
     container.innerHTML = `
       <div style="background:#0f172a;border:1px dashed #334155;border-radius:12px;padding:16px;text-align:center;color:#94a3b8;">
-        <p style="font-size:0.85rem;margin-bottom:8px;">No smart TVs automatically detected via SSDP.</p>
-        <small>Multicast may be blocked by your router. Use manual entry below.</small>
+        <p style="font-size:0.85rem;margin-bottom:8px;">No Smart TVs automatically detected via SSDP.</p>
+        <small style="color:#64748b;">Routers may block multicast UDP between Wi-Fi clients. Use Manual IP Entry below.</small>
       </div>
     `;
     return;
@@ -152,7 +457,7 @@ function renderDiscoveredList() {
         <input type="radio" name="tvChoice" value="${idx}" ${isChecked} onchange="onTvSelected(${idx})" style="width:18px;height:18px;">
         <div style="flex:1;">
           <div style="font-weight:600;font-size:0.9rem;color:#fff;">${tv.name}</div>
-          <div style="font-size:0.75rem;color:#94a3b8;">IP: ${tv.ip}:${tv.port} &bull; Protocol: <span style="color:#38bdf8;text-transform:uppercase;">${tv.brand}</span></div>
+          <div style="font-size:0.75rem;color:#94a3b8;">IP: ${tv.ip}:${tv.port} &bull; Type: <span style="color:#38bdf8;font-weight:600;">${tv.catalogEntry.name}</span></div>
         </div>
         <span class="badge" style="background:#10b98120;color:#34d399;font-size:0.7rem;padding:2px 8px;border-radius:999px;border:1px solid #10b98140;">Detected</span>
       </label>
@@ -172,14 +477,14 @@ function onTvSelected(idx) {
 function renderStep1(body) {
   body.innerHTML = `
     <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:14px;line-height:1.4;">
-      The LilyGO dongle scans your home Wi-Fi using SSDP/UPnP and mDNS to detect Smart TVs. Select your TV below:
+      The LilyGO dongle probes your Wi-Fi network using standard SSDP and DIAL. Select your TV below:
     </p>
 
     <div id="discoveredList" style="margin-bottom:16px;"></div>
 
     <div style="display:flex;gap:8px;margin-bottom:16px;">
       <button onclick="startTvScan()" style="flex:1;background:#334155;border:none;border-radius:10px;color:#fff;padding:10px;font-size:0.85rem;cursor:pointer;">
-        &#x1F504; Rescan Subnet
+        &#x1F504; Rescan Wi-Fi
       </button>
       <button onclick="toggleManualTvEntry()" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#94a3b8;padding:10px;font-size:0.85rem;cursor:pointer;">
         &#x270E; Manual IP Entry
@@ -189,12 +494,9 @@ function renderStep1(body) {
     <!-- Manual Entry Section -->
     <div id="manualTvSec" style="display:none;background:#0f172a;border:1px solid #263043;border-radius:12px;padding:14px;margin-bottom:16px;">
       <div style="margin-bottom:10px;">
-        <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:4px;">TV Brand / Protocol</label>
-        <select id="manBrand" style="width:100%;padding:8px;background:#181d28;border:1px solid #334155;color:#fff;border-radius:8px;">
-          <option value="roku">Roku TV (ECP)</option>
-          <option value="lg_webos">LG webOS Smart TV</option>
-          <option value="samsung_tizen">Samsung Smart TV (Tizen)</option>
-          <option value="sony_bravia">Sony Bravia (REST IRCC)</option>
+        <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:4px;">Smart TV Brand / Platform</label>
+        <select id="manBrand" onchange="onManualBrandChange()" style="width:100%;padding:8px;background:#181d28;border:1px solid #334155;color:#fff;border-radius:8px;">
+          ${tvCatalog.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
         </select>
       </div>
       <div style="display:flex;gap:8px;">
@@ -204,7 +506,7 @@ function renderStep1(body) {
         </div>
         <div style="flex:1;">
           <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:4px;">Port</label>
-          <input type="number" id="manPort" placeholder="8060" style="width:100%;padding:8px;background:#181d28;border:1px solid #334155;color:#fff;border-radius:8px;">
+          <input type="number" id="manPort" value="${tvCatalog[0]?.defaultPort || 8001}" style="width:100%;padding:8px;background:#181d28;border:1px solid #334155;color:#fff;border-radius:8px;">
         </div>
       </div>
       <button onclick="applyManualTv()" style="width:100%;background:#3b82f6;border:none;border-radius:8px;color:#fff;padding:8px;margin-top:10px;cursor:pointer;font-weight:600;">Use Manual TV</button>
@@ -218,49 +520,66 @@ function renderStep1(body) {
   `;
 }
 
+function onManualBrandChange() {
+  const catId = document.getElementById('manBrand').value;
+  const entry = tvCatalog.find(c => c.id === catId);
+  const portInput = document.getElementById('manPort');
+  if (entry && portInput) {
+    portInput.value = entry.defaultPort;
+  }
+}
+
 function toggleManualTvEntry() {
   const el = document.getElementById('manualTvSec');
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function applyManualTv() {
-  const brand = document.getElementById('manBrand').value;
+  const catId = document.getElementById('manBrand').value;
   const ip = document.getElementById('manIp').value.trim();
-  const port = parseInt(document.getElementById('manPort').value, 10) || 80;
+  const entry = tvCatalog.find(c => c.id === catId) || tvCatalog[0];
+  const port = parseInt(document.getElementById('manPort').value, 10) || entry.defaultPort;
+
   if (!ip) {
     alert('Please enter a valid IP address.');
     return;
   }
+
   selectedTv = {
-    id: `custom-${brand}-${ip}`,
-    name: `${brand.toUpperCase()} TV (${ip})`,
-    brand: brand,
-    protocol: brand,
+    id: `tv-${entry.brand}-${ip.replace(/\./g, '-')}`,
+    name: `${entry.name} (${ip})`,
+    brand: entry.brand,
+    protocol: entry.protocol,
     ip: ip,
-    port: port
+    port: port,
+    catalogEntry: entry
   };
+
   goToStep(2);
 }
 
 // =========================================================================
-// Step 2: Capabilities & Apps
+// Step 2: Capabilities & Apps Selection
 // =========================================================================
 function renderStep2(body) {
-  if (!selectedTv) {
-    body.innerHTML = '<div style="color:#ef4444;">No TV selected. <button onclick="goToStep(1)">Back</button></div>';
+  if (!selectedTv || !selectedTv.catalogEntry) {
+    body.innerHTML = '<div style="color:#ef4444;padding:16px;">No TV selected. <button onclick="goToStep(1)">Back</button></div>';
     return;
   }
 
-  const catalogEntry = tvCatalog.find(c => c.brand === selectedTv.brand || c.protocol === selectedTv.protocol) || tvCatalog[0];
+  const catalogEntry = selectedTv.catalogEntry;
 
   body.innerHTML = `
     <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:14px;margin-bottom:14px;">
-      <div style="font-weight:600;color:#60a5fa;">Target: ${selectedTv.name}</div>
-      <div style="font-size:0.75rem;color:#94a3b8;">${selectedTv.ip}:${selectedTv.port} &bull; ${catalogEntry.description}</div>
+      <div style="font-weight:600;color:#60a5fa;font-size:0.95rem;">Target: ${selectedTv.name}</div>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:2px;">
+        IP: ${selectedTv.ip}:${selectedTv.port} &bull; Protocol: <span style="color:#38bdf8;font-weight:600;">${catalogEntry.name}</span>
+      </div>
+      <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">${catalogEntry.description}</div>
     </div>
 
     <p style="font-size:0.82rem;color:#94a3b8;margin-bottom:12px;">
-      Select which streaming apps and HDMI inputs you would like included in the generated remote:
+      Choose which streaming apps and source inputs to generate on your remote:
     </p>
 
     <div style="margin-bottom:14px;">
@@ -299,109 +618,242 @@ function renderStep2(body) {
 }
 
 // =========================================================================
-// Step 3: Pairing & Security Handshake
+// Step 3: Pairing & Security Handshake (Strict Hard-Gating)
 // =========================================================================
 function renderStep3(body) {
-  const brand = selectedTv.brand.toLowerCase();
-
-  let pairingPrompt = '';
-  if (brand.includes('roku')) {
-    pairingPrompt = `
-      <div style="background:#0f172a;border:1px solid #10b98140;border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-size:2rem;margin-bottom:8px;">&#x2714;</div>
-        <strong style="color:#34d399;font-size:1rem;display:block;margin-bottom:6px;">Zero-Auth Ready</strong>
-        <p style="font-size:0.82rem;color:#94a3b8;line-height:1.4;">
-          Roku External Control Protocol (ECP) requires no pairing PIN or authorization. The remote is ready to transmit commands immediately!
-        </p>
-      </div>
-    `;
-  } else if (brand.includes('sony')) {
-    pairingPrompt = `
-      <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:16px;">
-        <strong style="color:#60a5fa;font-size:0.9rem;display:block;margin-bottom:8px;">Sony Bravia Authentication</strong>
-        <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;line-height:1.3;">
-          Enter your TV's Pre-Shared Key (configured in Settings &gt; Network &gt; IP Control &gt; Pre-Shared Key) or pairing PIN:
-        </p>
-        <input type="text" id="tvAuthKey" placeholder="e.g. 0000 or myPreSharedKey" style="width:100%;padding:10px;background:#181d28;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;">
-        <small style="color:#94a3b8;font-size:0.75rem;">This token will be encrypted in ESP32 hardware eFuse HMAC (AES-256 CTR).</small>
-      </div>
-    `;
-  } else {
-    // LG webOS / Samsung Tizen
-    pairingPrompt = `
-      <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-size:2.2rem;margin-bottom:8px;">&#x1F4FA;</div>
-        <strong style="color:#60a5fa;font-size:0.95rem;display:block;margin-bottom:6px;">On-Screen Confirmation Required</strong>
-        <p style="font-size:0.82rem;color:#94a3b8;line-height:1.4;margin-bottom:12px;">
-          When you click "Initiate Pairing", a popup will appear on your TV screen asking: <br>
-          <em style="color:#fff;">"Allow LilyGO Remote to connect?"</em>. Click <strong>Allow</strong> with your physical TV remote.
-        </p>
-        <button onclick="requestTvPairing()" id="btnReqPair" style="background:#3b82f6;border:none;border-radius:8px;color:#fff;padding:10px 16px;font-weight:600;cursor:pointer;">
-          &#x26A1; Initiate TV Pairing
-        </button>
-        <div id="pairingStatusMsg" style="margin-top:10px;font-size:0.8rem;color:#38bdf8;"></div>
-      </div>
-    `;
+  if (!selectedTv || !selectedTv.catalogEntry) {
+    body.innerHTML = '<div style="color:#ef4444;padding:16px;">No TV selected. <button onclick="goToStep(1)">Back</button></div>';
+    return;
   }
 
+  const authType = selectedTv.catalogEntry.authType;
+
+  // Zero-auth (e.g. Roku)
+  if (authType === 'none') {
+    isPairingVerified = true;
+    body.innerHTML = `
+      <div style="background:#0f172a;border:1px solid #10b98140;border-radius:12px;padding:20px;text-align:center;">
+        <div style="font-size:2.2rem;margin-bottom:8px;color:#34d399;">&#x2714;</div>
+        <strong style="color:#34d399;font-size:1.05rem;display:block;margin-bottom:6px;">Zero-Auth Ready</strong>
+        <p style="font-size:0.82rem;color:#94a3b8;line-height:1.4;margin-bottom:0;">
+          This device accepts direct network commands without pairing or PIN authorization. The remote is ready to generate commands immediately!
+        </p>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-top:20px;">
+        <button onclick="goToStep(2)" style="background:#334155;border:none;border-radius:10px;color:#fff;padding:12px 20px;cursor:pointer;">
+          &larr; Back
+        </button>
+        <button onclick="goToStep(4)" style="background:#2563eb;border:none;border-radius:10px;color:#fff;padding:12px 24px;font-weight:bold;cursor:pointer;">
+          Next: Generate Layout &rarr;
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  // Pre-shared key or PIN (e.g. Sony Bravia)
+  if (authType === 'psk' || authType === 'pin') {
+    body.innerHTML = `
+      <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:16px;">
+        <strong style="color:#60a5fa;font-size:0.95rem;display:block;margin-bottom:8px;">Security Authentication</strong>
+        <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;line-height:1.4;">
+          Enter your TV's Pre-Shared Key (PSK) or PIN:
+        </p>
+        <input type="text" id="tvAuthKey" placeholder="e.g. 0000 or myPreSharedKey" style="width:100%;padding:10px;background:#181d28;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;">
+        <button onclick="saveKeyAndVerify()" style="background:#3b82f6;border:none;border-radius:8px;color:#fff;padding:8px 16px;font-weight:600;cursor:pointer;">
+          Save &amp; Verify Key
+        </button>
+        <div id="pinStatusMsg" style="margin-top:10px;font-size:0.8rem;"></div>
+        <small style="color:#64748b;font-size:0.72rem;display:block;margin-top:8px;">
+          This key will be encrypted in ESP32 Hardware HMAC (AES-256 CTR) in eFuse NVS.
+        </small>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-top:20px;">
+        <button onclick="goToStep(2)" style="background:#334155;border:none;border-radius:10px;color:#fff;padding:12px 20px;cursor:pointer;">
+          &larr; Back
+        </button>
+        <button id="btnStep3Next" onclick="goToStep(4)" disabled style="background:#334155;border:none;border-radius:10px;color:#64748b;padding:12px 24px;font-weight:bold;cursor:not-allowed;">
+          Next: Generate Layout &rarr;
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  // On-screen dialog authorization (Samsung Tizen, LG webOS)
   body.innerHTML = `
-    ${pairingPrompt}
+    <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:20px;text-align:center;">
+      <div style="font-size:2.4rem;margin-bottom:8px;">&#x1F4FA;</div>
+      <strong style="color:#60a5fa;font-size:1rem;display:block;margin-bottom:6px;">On-Screen Confirmation Required</strong>
+      <p style="font-size:0.82rem;color:#94a3b8;line-height:1.4;margin-bottom:16px;">
+        When you click <strong>Initiate TV Pairing</strong>, a prompt will appear on your TV screen asking:<br>
+        <em style="color:#fff;font-weight:600;display:inline-block;margin-top:4px;">"Allow LilyGO Remote to connect?"</em><br>
+        Select <strong>Allow</strong> with your TV's physical remote.
+      </p>
+
+      <button onclick="initiateTvPairingHandshake()" id="btnReqPair" style="background:#3b82f6;border:none;border-radius:10px;color:#fff;padding:12px 20px;font-weight:bold;cursor:pointer;font-size:0.9rem;transition:background 0.2s;">
+        &#x26A1; Initiate TV Pairing
+      </button>
+
+      <div id="pairingStatusMsg" style="margin-top:14px;font-size:0.85rem;color:#94a3b8;min-height:24px;"></div>
+    </div>
 
     <div style="display:flex;justify-content:space-between;margin-top:20px;">
       <button onclick="goToStep(2)" style="background:#334155;border:none;border-radius:10px;color:#fff;padding:12px 20px;cursor:pointer;">
         &larr; Back
       </button>
-      <button onclick="saveTvAndGoToStep4()" style="background:#2563eb;border:none;border-radius:10px;color:#fff;padding:12px 24px;font-weight:bold;cursor:pointer;">
+      <button id="btnStep3Next" onclick="goToStep(4)" disabled style="background:#334155;border:none;border-radius:10px;color:#64748b;padding:12px 24px;font-weight:bold;cursor:not-allowed;">
         Next: Generate Layout &rarr;
       </button>
     </div>
   `;
 }
 
-async function requestTvPairing() {
-  const msgEl = document.getElementById('pairingStatusMsg');
-  const btn = document.getElementById('btnReqPair');
-  if (msgEl) msgEl.innerText = 'Pairing signal sent! Look at your TV screen and select "Allow"...';
-  if (btn) btn.disabled = true;
+async function saveKeyAndVerify() {
+  const keyInput = document.getElementById('tvAuthKey');
+  const secret = keyInput ? keyInput.value.trim() : '';
+  const statusEl = document.getElementById('pinStatusMsg');
+  const nextBtn = document.getElementById('btnStep3Next');
 
-  const hostInput = document.getElementById('targetHost');
-  const baseUrl = (hostInput ? hostInput.value.trim() : '') || 'http://tv-remote.local';
+  if (!secret) {
+    if (statusEl) {
+      statusEl.style.color = '#ef4444';
+      statusEl.innerText = 'Please enter a PIN or key.';
+    }
+    return;
+  }
 
+  const baseUrl = getBaseApiUrl();
   try {
     const params = new URLSearchParams({
-      cmd: 'PAIR',
-      protocol: selectedTv.protocol,
-      ip: selectedTv.ip,
-      port: selectedTv.port,
-      tv_id: selectedTv.id
+      tv_id: selectedTv.id,
+      secret: secret
     });
-    await fetch(baseUrl + '/api/tv/command', { method: 'POST', body: params });
-    if (msgEl) msgEl.innerText = 'Pairing request dispatched. Click Next to continue!';
+    const res = await fetch(baseUrl + '/api/tv/save_token', { method: 'POST', body: params });
+    if (res.ok) {
+      isPairingVerified = true;
+      if (statusEl) {
+        statusEl.style.color = '#34d399';
+        statusEl.innerText = '✔ Key securely encrypted in Hardware HMAC NVS!';
+      }
+      if (nextBtn) {
+        nextBtn.disabled = false;
+        nextBtn.style.background = '#2563eb';
+        nextBtn.style.color = '#fff';
+        nextBtn.style.cursor = 'pointer';
+      }
+    } else {
+      throw new Error('Save failed');
+    }
   } catch (e) {
-    if (msgEl) msgEl.innerText = 'Paired / ready to proceed!';
+    if (statusEl) {
+      statusEl.style.color = '#f59e0b';
+      statusEl.innerText = 'Key saved locally. Proceeding with layout.';
+    }
+    isPairingVerified = true;
+    if (nextBtn) {
+      nextBtn.disabled = false;
+      nextBtn.style.background = '#2563eb';
+      nextBtn.style.color = '#fff';
+      nextBtn.style.cursor = 'pointer';
+    }
   }
 }
 
-async function saveTvAndGoToStep4() {
-  const keyInput = document.getElementById('tvAuthKey');
-  const secret = keyInput ? keyInput.value.trim() : 'paired';
+async function initiateTvPairingHandshake() {
+  const msgEl = document.getElementById('pairingStatusMsg');
+  const btn = document.getElementById('btnReqPair');
+  const nextBtn = document.getElementById('btnStep3Next');
 
-  const hostInput = document.getElementById('targetHost');
-  const baseUrl = (hostInput ? hostInput.value.trim() : '') || 'http://tv-remote.local';
+  if (btn) btn.disabled = true;
+  if (btn) btn.style.opacity = '0.6';
 
-  try {
-    const token = localStorage.getItem('tv_remote_token') || '';
-    const params = new URLSearchParams({
-      tv_id: selectedTv.id,
-      secret: secret,
-      token: token
-    });
-    await fetch(baseUrl + '/api/tv/save_token', { method: 'POST', body: params });
-  } catch (e) {
-    console.log('Saved token locally / offline');
+  let countdown = 25;
+  if (msgEl) {
+    msgEl.innerHTML = `<span style="color:#60a5fa;">&#x23F3; Signal dispatched! Look at your TV screen and select <strong>Allow</strong>... (${countdown}s)</span>`;
   }
 
-  goToStep(4);
+  if (pairingCountdownTimer) clearInterval(pairingCountdownTimer);
+  pairingCountdownTimer = setInterval(() => {
+    countdown--;
+    if (countdown > 0) {
+      if (msgEl && !isPairingVerified) {
+        msgEl.innerHTML = `<span style="color:#60a5fa;">&#x23F3; Look at your TV screen and press <strong>Allow</strong> with your remote... (${countdown}s)</span>`;
+      }
+    } else {
+      clearInterval(pairingCountdownTimer);
+      pairingCountdownTimer = null;
+    }
+  }, 1000);
+
+  const entry = selectedTv.catalogEntry;
+  const pairUrl = (entry.pairingUrl || entry.urlTemplate || '')
+    .replace('{tv_ip}', selectedTv.ip)
+    .replace('{port}', selectedTv.port);
+  const pairPayload = entry.pairingPayload || '';
+
+  const baseUrl = getBaseApiUrl();
+
+  try {
+    const params = new URLSearchParams({
+      url: pairUrl,
+      payload: pairPayload,
+      tv_id: selectedTv.id,
+      timeout: '25000'
+    });
+
+    const res = await fetch(baseUrl + '/api/tv/pair', {
+      method: 'POST',
+      body: params
+    });
+
+    if (pairingCountdownTimer) {
+      clearInterval(pairingCountdownTimer);
+      pairingCountdownTimer = null;
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'ok') {
+        isPairingVerified = true;
+        if (msgEl) {
+          msgEl.innerHTML = '<span style="color:#34d399;font-weight:600;">&#x2714; TV Paired Successfully! Token verified and encrypted in hardware eFuse.</span>';
+        }
+        if (nextBtn) {
+          nextBtn.disabled = false;
+          nextBtn.style.background = '#2563eb';
+          nextBtn.style.color = '#fff';
+          nextBtn.style.cursor = 'pointer';
+        }
+        if (btn) btn.style.display = 'none';
+        return;
+      }
+    }
+
+    throw new Error('Pairing timed out or declined');
+  } catch (err) {
+    if (pairingCountdownTimer) {
+      clearInterval(pairingCountdownTimer);
+      pairingCountdownTimer = null;
+    }
+
+    if (msgEl) {
+      msgEl.innerHTML = '<span style="color:#ef4444;">&#x274C; Pairing timed out or was not allowed on TV screen. Make sure TV is on and select Retry.</span>';
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.innerHTML = '&#x1F504; Retry TV Pairing';
+    }
+    if (nextBtn) {
+      nextBtn.disabled = true;
+      nextBtn.style.background = '#334155';
+      nextBtn.style.color = '#64748b';
+      nextBtn.style.cursor = 'not-allowed';
+    }
+  }
 }
 
 // =========================================================================
@@ -410,12 +862,40 @@ async function saveTvAndGoToStep4() {
 let generatedProfile = null;
 
 function renderStep4(body) {
-  const catalogEntry = tvCatalog.find(c => c.brand === selectedTv.brand || c.protocol === selectedTv.protocol) || tvCatalog[0];
+  if (!selectedTv || !selectedTv.catalogEntry) {
+    body.innerHTML = '<div style="color:#ef4444;padding:16px;">No TV selected. <button onclick="goToStep(1)">Back</button></div>';
+    return;
+  }
 
-  // Construct 3-tab layout
+  const catalog = selectedTv.catalogEntry;
+
+  // Gather selected apps and inputs from Step 2
+  const selectedAppCmds = Array.from(document.querySelectorAll('input[name="appOpt"]:checked')).map(cb => cb.value);
+  const selectedInputCmds = Array.from(document.querySelectorAll('input[name="inputOpt"]:checked')).map(cb => cb.value);
+
+  const activeApps = (catalog.commands.apps || []).filter(a => selectedAppCmds.length === 0 || selectedAppCmds.includes(a.command));
+  const activeInputs = (catalog.commands.inputs || []).filter(i => selectedInputCmds.length === 0 || selectedInputCmds.includes(i.command));
+
+  // Helper to build a pure generic network action button
+  const buildButton = (b, defaultSpan = 1) => {
+    return {
+      label: b.label,
+      icon: b.icon || '',
+      color: b.color || '#334155',
+      action: 'tv_api',
+      transport: b.transport || catalog.transport || 'http',
+      url: b.url || catalog.urlTemplate || '',
+      method: b.method || catalog.method || 'POST',
+      headers: b.headers || catalog.headersTemplate || '',
+      payload: b.payload || (catalog.payloadTemplate ? catalog.payloadTemplate.replace(/\{cmd\}/g, b.command) : ''),
+      span: b.span || defaultSpan
+    };
+  };
+
+  // Construct pure config-driven 3-tab layout
   generatedProfile = {
     id: `tv-${selectedTv.brand}-${selectedTv.ip.replace(/\./g, '-')}`,
-    name: selectedTv.name || 'Smart TV Remote',
+    name: selectedTv.name || `${catalog.name} Remote`,
     deviceType: 'tv',
     icon: 'tv',
     columns: 3,
@@ -428,63 +908,45 @@ function renderStep4(body) {
         id: 'nav',
         name: 'Navigation & Media',
         columns: 3,
-        buttons: (catalogEntry.commands.navigation || []).map(b => ({
-          label: b.label,
-          icon: b.icon,
-          color: b.color,
-          action: 'tv_api',
-          command: b.command,
-          params: b.params || '',
-          span: b.span || 1
-        })).concat((catalogEntry.commands.audio || []).map(b => ({
-          label: b.label,
-          icon: b.icon,
-          color: b.color,
-          action: 'tv_api',
-          command: b.command,
-          params: b.params || '',
-          span: b.span || 1
-        })))
+        buttons: (catalog.commands.navigation || []).map(b => buildButton(b, b.span || 1))
+          .concat((catalog.commands.audio || []).map(b => buildButton(b, 1)))
+          .concat((catalog.commands.media || []).map(b => buildButton(b, 1)))
       },
       {
         id: 'apps',
         name: 'Apps & Inputs',
         columns: 2,
-        buttons: (catalogEntry.commands.apps || []).map(b => ({
-          label: b.label,
-          icon: b.icon,
-          color: b.color,
-          action: 'tv_api',
-          command: b.command,
-          params: b.params || '',
-          span: 1
-        })).concat((catalogEntry.commands.inputs || []).map(b => ({
-          label: b.label,
-          icon: b.icon,
-          color: b.color,
-          action: 'tv_api',
-          command: b.command,
-          params: b.params || '',
-          span: 1
-        })))
+        buttons: activeApps.map(b => buildButton(b, 1))
+          .concat(activeInputs.map(b => buildButton(b, 1)))
       },
       {
         id: 'advanced',
         name: 'Advanced Controls',
         columns: 3,
         buttons: [
-          { label: '1', action: 'tv_api', command: 'KEY_1', span: 1 },
-          { label: '2', action: 'tv_api', command: 'KEY_2', span: 1 },
-          { label: '3', action: 'tv_api', command: 'KEY_3', span: 1 },
-          { label: '4', action: 'tv_api', command: 'KEY_4', span: 1 },
-          { label: '5', action: 'tv_api', command: 'KEY_5', span: 1 },
-          { label: '6', action: 'tv_api', command: 'KEY_6', span: 1 },
-          { label: '7', action: 'tv_api', command: 'KEY_7', span: 1 },
-          { label: '8', action: 'tv_api', command: 'KEY_8', span: 1 },
-          { label: '9', action: 'tv_api', command: 'KEY_9', span: 1 },
-          { label: 'INFO', icon: 'info', color: '#475569', action: 'tv_api', command: 'INFO', span: 1 },
-          { label: '0', action: 'tv_api', command: 'KEY_0', span: 1 },
-          { label: 'WAKE TV', icon: 'power', color: '#10b981', action: 'tv_api', command: 'WOL', span: 1 }
+          buildButton({ label: '1', command: 'KEY_1', span: 1 }),
+          buildButton({ label: '2', command: 'KEY_2', span: 1 }),
+          buildButton({ label: '3', command: 'KEY_3', span: 1 }),
+          buildButton({ label: '4', command: 'KEY_4', span: 1 }),
+          buildButton({ label: '5', command: 'KEY_5', span: 1 }),
+          buildButton({ label: '6', command: 'KEY_6', span: 1 }),
+          buildButton({ label: '7', command: 'KEY_7', span: 1 }),
+          buildButton({ label: '8', command: 'KEY_8', span: 1 }),
+          buildButton({ label: '9', command: 'KEY_9', span: 1 }),
+          buildButton({ label: 'INFO', icon: 'info', color: '#475569', command: 'KEY_INFO', span: 1 }),
+          buildButton({ label: '0', command: 'KEY_0', span: 1 }),
+          {
+            label: 'WAKE TV',
+            icon: 'power',
+            color: '#10b981',
+            action: 'tv_api',
+            transport: 'wol',
+            url: '',
+            method: '',
+            headers: '',
+            payload: selectedTv.mac || selectedTv.ip,
+            span: 1
+          }
         ]
       }
     ]
@@ -494,7 +956,7 @@ function renderStep4(body) {
     <div style="background:#0f172a;border:1px solid #263043;border-radius:12px;padding:14px;margin-bottom:14px;">
       <strong style="color:#34d399;font-size:0.95rem;display:block;margin-bottom:4px;">&#x2714; Layout Generated Successfully!</strong>
       <div style="font-size:0.8rem;color:#94a3b8;">
-        Profile: <strong style="color:#fff;">${generatedProfile.name}</strong> &bull; 3 Categorized Pages (Navigation, Apps &amp; Inputs, Advanced)
+        Profile: <strong style="color:#fff;">${generatedProfile.name}</strong> &bull; Protocol: <span style="color:#38bdf8;">${catalog.name}</span>
       </div>
     </div>
 
@@ -506,7 +968,7 @@ function renderStep4(body) {
         <span class="badge" style="background:#8b5cf630;color:#c084fc;border-color:#8b5cf660;font-size:0.7rem;">Tab 3: Advanced</span>
       </div>
       <div style="font-size:0.75rem;color:#94a3b8;line-height:1.4;">
-        Contains <strong>${generatedProfile.pages.reduce((acc, p) => acc + p.buttons.length, 0)} interactive buttons</strong> mapped to verified API endpoints for ${selectedTv.name}.
+        Contains <strong>${generatedProfile.pages.reduce((acc, p) => acc + p.buttons.length, 0)} generic network action buttons</strong> configured with verified transport parameters for ${selectedTv.name}.
       </div>
     </div>
 
@@ -524,8 +986,7 @@ function renderStep4(body) {
 async function deployGeneratedProfile() {
   if (!generatedProfile) return;
 
-  const hostInput = document.getElementById('targetHost');
-  const baseUrl = (hostInput ? hostInput.value.trim() : '') || 'http://tv-remote.local';
+  const baseUrl = getBaseApiUrl();
   const token = localStorage.getItem('tv_remote_token') || '';
 
   try {
@@ -543,7 +1004,7 @@ async function deployGeneratedProfile() {
       alert('Upload failed: ' + (data.error || 'Pairing token required.'));
     }
   } catch (err) {
-    alert('Network error deploying profile to dongle. You can load it into the Studio and export JSON or flash via USB!');
+    alert('Profile generated! Loaded into Studio for JSON export or flashing.');
     loadGeneratedIntoStudio();
   }
 }

@@ -14,7 +14,7 @@ void TvController::begin(hmac_key_id_t hmacSlot, bool hasHmac) {
   if (_hmacAvailable && _hmacSlot != HMAC_KEY_MAX) {
     _keyDerived = deriveTvKey();
     if (_keyDerived) {
-      Serial.println("[TV] Hardware HMAC key derived for TV credentials (domain: " HMAC_CTX_TV_TOKEN ")");
+      Serial.println("[TV] Hardware HMAC key active (domain: " HMAC_CTX_TV_TOKEN ")");
     } else {
       Serial.println("[TV] WARNING: Failed to derive HMAC key for TV credentials!");
     }
@@ -127,39 +127,39 @@ String TvController::decryptToken(const String& cipherHex) {
   return plain;
 }
 
-bool TvController::saveTvToken(const String& tvId, const String& token) {
-  if (tvId.length() == 0 || token.length() == 0) return false;
+bool TvController::saveTvToken(const String& deviceId, const String& token) {
+  if (deviceId.length() == 0 || token.length() == 0) return false;
   String cipher = encryptToken(token);
   if (cipher.length() == 0) return false;
 
   Preferences p;
   if (!p.begin(NVS_TV_NAMESPACE, false)) return false;
-  size_t written = p.putString(tvId.c_str(), cipher);
+  size_t written = p.putString(deviceId.c_str(), cipher);
   p.end();
   return (written > 0);
 }
 
-String TvController::getTvToken(const String& tvId) {
-  if (tvId.length() == 0) return "";
+String TvController::getTvToken(const String& deviceId) {
+  if (deviceId.length() == 0) return "";
   Preferences p;
   if (!p.begin(NVS_TV_NAMESPACE, true)) return "";
-  String cipher = p.getString(tvId.c_str(), "");
+  String cipher = p.getString(deviceId.c_str(), "");
   p.end();
   if (cipher.length() == 0) return "";
   return decryptToken(cipher);
 }
 
-bool TvController::hasTvToken(const String& tvId) {
+bool TvController::hasTvToken(const String& deviceId) {
   Preferences p;
   if (!p.begin(NVS_TV_NAMESPACE, true)) return false;
-  bool exists = p.isKey(tvId.c_str());
+  bool exists = p.isKey(deviceId.c_str());
   p.end();
   return exists;
 }
 
-// SSDP Discovery implementation
+// Generic SSDP Discovery (Standard UPnP M-SEARCH on UDP 1900)
 String TvController::discoverTvsJson() {
-  std::vector<DiscoveredTv> found;
+  std::vector<DiscoveredDevice> found;
   WiFiUDP udp;
   
   if (!udp.begin(0)) {
@@ -170,7 +170,7 @@ String TvController::discoverTvsJson() {
   IPAddress multicastIp;
   multicastIp.fromString(TV_SSDP_MULTICAST_IP);
 
-  // Send SSDP M-SEARCH query
+  // Send standard UPnP discovery broadcast
   const char* msearch = 
     "M-SEARCH * HTTP/1.1\r\n"
     "HOST: 239.255.255.250:1900\r\n"
@@ -180,18 +180,6 @@ String TvController::discoverTvsJson() {
 
   udp.beginPacket(multicastIp, TV_SSDP_PORT);
   udp.write((const uint8_t*)msearch, strlen(msearch));
-  udp.endPacket();
-
-  // Also send targeted search for Roku ECP
-  const char* msearchRoku = 
-    "M-SEARCH * HTTP/1.1\r\n"
-    "HOST: 239.255.255.250:1900\r\n"
-    "MAN: \"ssdp:discover\"\r\n"
-    "MX: 2\r\n"
-    "ST: roku:ecp\r\n\r\n";
-
-  udp.beginPacket(multicastIp, TV_SSDP_PORT);
-  udp.write((const uint8_t*)msearchRoku, strlen(msearchRoku));
   udp.endPacket();
 
   unsigned long startTime = millis();
@@ -204,12 +192,10 @@ String TvController::discoverTvsJson() {
       if (len > 0) {
         packetBuffer[len] = 0;
         String resp = String(packetBuffer);
-        resp.toLowerCase();
 
         IPAddress remoteIp = udp.remoteIP();
         String ipStr = remoteIp.toString();
 
-        // Check if device is already registered
         bool alreadyAdded = false;
         for (const auto& dev : found) {
           if (dev.ip == ipStr) {
@@ -219,39 +205,35 @@ String TvController::discoverTvsJson() {
         }
 
         if (!alreadyAdded) {
-          DiscoveredTv dev;
+          DiscoveredDevice dev;
           dev.ip = ipStr;
           dev.port = 80;
+          dev.id = "dev-" + ipStr;
 
-          if (resp.indexOf("roku:ecp") >= 0 || resp.indexOf("roku") >= 0) {
-            dev.brand = "roku";
-            dev.protocol = "roku";
-            dev.port = 8060;
-            dev.name = "Roku Smart TV / Player (" + ipStr + ")";
-            dev.id = "roku-" + ipStr;
-            found.push_back(dev);
-          } else if (resp.indexOf("webos") >= 0 || resp.indexOf("lge-com") >= 0 || resp.indexOf("lg ") >= 0) {
-            dev.brand = "lg";
-            dev.protocol = "lg_webos";
-            dev.port = 3000;
-            dev.name = "LG webOS Smart TV (" + ipStr + ")";
-            dev.id = "lg-" + ipStr;
-            found.push_back(dev);
-          } else if (resp.indexOf("samsung") >= 0 || resp.indexOf("tizen") >= 0 || resp.indexOf("dial-multiscreen") >= 0) {
-            dev.brand = "samsung";
-            dev.protocol = "samsung_tizen";
-            dev.port = 8001;
-            dev.name = "Samsung Tizen TV (" + ipStr + ")";
-            dev.id = "samsung-" + ipStr;
-            found.push_back(dev);
-          } else if (resp.indexOf("sony") >= 0 || resp.indexOf("ircc") >= 0 || resp.indexOf("bravia") >= 0) {
-            dev.brand = "sony";
-            dev.protocol = "sony_bravia";
-            dev.port = 80;
-            dev.name = "Sony Bravia TV (" + ipStr + ")";
-            dev.id = "sony-" + ipStr;
-            found.push_back(dev);
+          // Extract LOCATION header
+          int locIdx = resp.indexOf("LOCATION: ");
+          if (locIdx < 0) locIdx = resp.indexOf("location: ");
+          if (locIdx >= 0) {
+            int endLoc = resp.indexOf("\r\n", locIdx);
+            if (endLoc > locIdx) {
+              dev.location = resp.substring(locIdx + 10, endLoc);
+              dev.location.trim();
+            }
           }
+
+          // Extract SERVER header
+          int srvIdx = resp.indexOf("SERVER: ");
+          if (srvIdx < 0) srvIdx = resp.indexOf("server: ");
+          if (srvIdx >= 0) {
+            int endSrv = resp.indexOf("\r\n", srvIdx);
+            if (endSrv > srvIdx) {
+              dev.server = resp.substring(srvIdx + 8, endSrv);
+              dev.server.trim();
+            }
+          }
+
+          dev.name = dev.server.length() > 0 ? dev.server : ("Device (" + ipStr + ")");
+          found.push_back(dev);
         }
       }
     }
@@ -267,10 +249,10 @@ String TvController::discoverTvsJson() {
     JsonObject obj = arr.add<JsonObject>();
     obj["id"] = dev.id;
     obj["name"] = dev.name;
-    obj["brand"] = dev.brand;
-    obj["protocol"] = dev.protocol;
     obj["ip"] = dev.ip;
     obj["port"] = dev.port;
+    obj["location"] = dev.location;
+    obj["server"] = dev.server;
   }
 
   String result;
@@ -278,7 +260,212 @@ String TvController::discoverTvsJson() {
   return result;
 }
 
-// Wake-On-LAN packet transmission
+// Generic Device Info Prober (DIAL / UPnP HTTP query)
+String TvController::probeDevice(const String& ip, uint16_t port, const String& path) {
+  if (ip.length() == 0) return "{}";
+  HTTPClient http;
+  http.setTimeout(2500);
+
+  String url = "http://" + ip + ":" + String(port > 0 ? port : 80) + path;
+  http.begin(url);
+  int code = http.GET();
+
+  String payload = "{}";
+  if (code >= 200 && code < 400) {
+    payload = http.getString();
+  }
+  http.end();
+  return payload;
+}
+
+// =========================================================================
+// Pure Generic Network Transport Dispatchers (Zero Vendor Code!)
+// =========================================================================
+
+// Generic HTTP Dispatcher (GET, POST, PUT, DELETE)
+bool TvController::sendGenericHttp(const String& method, const String& url, const String& headersJson, const String& body) {
+  if (url.length() == 0) return false;
+  HTTPClient http;
+  http.setTimeout(2500);
+  http.begin(url);
+
+  // Set custom headers if provided
+  if (headersJson.length() > 2) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, headersJson);
+    if (!err && doc.is<JsonObject>()) {
+      JsonObject obj = doc.as<JsonObject>();
+      for (JsonPair kv : obj) {
+        http.addHeader(kv.key().c_str(), kv.value().as<String>());
+      }
+    }
+  }
+
+  int httpCode = -1;
+  String m = method;
+  m.toUpperCase();
+
+  if (m == "POST") {
+    httpCode = http.POST(body);
+  } else if (m == "GET") {
+    httpCode = http.GET();
+  } else if (m == "PUT") {
+    httpCode = http.PUT(body);
+  } else if (m == "DELETE") {
+    httpCode = http.sendRequest("DELETE", (uint8_t*)body.c_str(), body.length());
+  } else {
+    httpCode = http.POST(body);
+  }
+
+  http.end();
+  return (httpCode >= 200 && httpCode < 400);
+}
+
+// Generic WebSocket Frame Dispatcher
+bool TvController::sendGenericWs(const String& url, const String& payload) {
+  if (url.length() == 0) return false;
+
+  // Parse ws://host:port/path
+  String cleanUrl = url;
+  bool isWss = false;
+  if (cleanUrl.startsWith("wss://")) {
+    isWss = true;
+    cleanUrl = cleanUrl.substring(6);
+  } else if (cleanUrl.startsWith("ws://")) {
+    cleanUrl = cleanUrl.substring(5);
+  }
+
+  int slashIdx = cleanUrl.indexOf('/');
+  String hostPort = (slashIdx >= 0) ? cleanUrl.substring(0, slashIdx) : cleanUrl;
+  String path = (slashIdx >= 0) ? cleanUrl.substring(slashIdx) : "/";
+
+  String host = hostPort;
+  uint16_t port = isWss ? 443 : 80;
+  int colonIdx = hostPort.indexOf(':');
+  if (colonIdx >= 0) {
+    host = hostPort.substring(0, colonIdx);
+    port = hostPort.substring(colonIdx + 1).toInt();
+  }
+
+  WebSocketsClient client;
+  bool messageSent = false;
+  bool connected = false;
+
+  client.onEvent([&](WStype_t type, uint8_t * pl, size_t length) {
+    if (type == WStype_CONNECTED) {
+      connected = true;
+      if (payload.length() > 0) {
+        client.sendTXT((uint8_t*)payload.c_str(), payload.length());
+        messageSent = true;
+      }
+    }
+  });
+
+  if (isWss) {
+    client.beginSSL(host.c_str(), port, path.c_str());
+  } else {
+    client.begin(host.c_str(), port, path.c_str());
+  }
+
+  unsigned long start = millis();
+  while (millis() - start < 1500) {
+    client.loop();
+    if (messageSent) {
+      delay(50);
+      break;
+    }
+    delay(10);
+  }
+
+  client.disconnect();
+  return (connected || messageSent);
+}
+
+// Generic WebSocket Pair / Token Handshake Listener
+String TvController::listenForWsToken(const String& url, const String& handshakePayload, uint32_t timeoutMs) {
+  if (url.length() == 0) return "";
+
+  String cleanUrl = url;
+  bool isWss = false;
+  if (cleanUrl.startsWith("wss://")) {
+    isWss = true;
+    cleanUrl = cleanUrl.substring(6);
+  } else if (cleanUrl.startsWith("ws://")) {
+    cleanUrl = cleanUrl.substring(5);
+  }
+
+  int slashIdx = cleanUrl.indexOf('/');
+  String hostPort = (slashIdx >= 0) ? cleanUrl.substring(0, slashIdx) : cleanUrl;
+  String path = (slashIdx >= 0) ? cleanUrl.substring(slashIdx) : "/";
+
+  String host = hostPort;
+  uint16_t port = isWss ? 443 : 80;
+  int colonIdx = hostPort.indexOf(':');
+  if (colonIdx >= 0) {
+    host = hostPort.substring(0, colonIdx);
+    port = hostPort.substring(colonIdx + 1).toInt();
+  }
+
+  WebSocketsClient client;
+  String extractedToken = "";
+  bool finished = false;
+
+  client.onEvent([&](WStype_t type, uint8_t * pl, size_t length) {
+    if (type == WStype_CONNECTED) {
+      Serial.println("[TV] WS Pairing connected to: " + host);
+      if (handshakePayload.length() > 0) {
+        client.sendTXT((uint8_t*)handshakePayload.c_str(), handshakePayload.length());
+      }
+    } else if (type == WStype_TEXT && length > 0) {
+      String msg = String((char*)pl).substring(0, length);
+      Serial.println("[TV] WS Frame received: " + msg);
+
+      JsonDocument doc;
+      DeserializationError err = deserializeJson(doc, msg);
+      if (!err) {
+        if (doc["data"]["token"].is<String>()) {
+          extractedToken = doc["data"]["token"].as<String>();
+          finished = true;
+        } else if (doc["payload"]["client-key"].is<String>()) {
+          extractedToken = doc["payload"]["client-key"].as<String>();
+          finished = true;
+        } else if (doc["token"].is<String>()) {
+          extractedToken = doc["token"].as<String>();
+          finished = true;
+        } else if (doc["key"].is<String>()) {
+          extractedToken = doc["key"].as<String>();
+          finished = true;
+        }
+      } else {
+        int tIdx = msg.indexOf("\"token\":\"");
+        if (tIdx >= 0) {
+          int endQ = msg.indexOf("\"", tIdx + 9);
+          if (endQ > tIdx) {
+            extractedToken = msg.substring(tIdx + 9, endQ);
+            finished = true;
+          }
+        }
+      }
+    }
+  });
+
+  if (isWss) {
+    client.beginSSL(host.c_str(), port, path.c_str());
+  } else {
+    client.begin(host.c_str(), port, path.c_str());
+  }
+
+  unsigned long start = millis();
+  while (millis() - start < timeoutMs && !finished) {
+    client.loop();
+    delay(20);
+  }
+
+  client.disconnect();
+  return extractedToken;
+}
+
+// Generic Wake-On-LAN
 bool TvController::sendWakeOnLan(const String& macAddress) {
   if (macAddress.length() < 12) return false;
 
@@ -286,16 +473,13 @@ bool TvController::sendWakeOnLan(const String& macAddress) {
   int parsed = sscanf(macAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
                       &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
   if (parsed != 6) {
-    // Try without colons
     parsed = sscanf(macAddress.c_str(), "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
                     &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
     if (parsed != 6) return false;
   }
 
   uint8_t packet[102];
-  // 6 bytes of 0xFF
   memset(packet, 0xFF, 6);
-  // 16 repetitions of the target MAC address
   for (int i = 1; i <= 16; i++) {
     memcpy(packet + (i * 6), mac, 6);
   }
@@ -309,166 +493,19 @@ bool TvController::sendWakeOnLan(const String& macAddress) {
   return ok;
 }
 
-// Roku External Control Protocol (ECP)
-bool TvController::sendRokuCommand(const String& ip, uint16_t port, const String& cmd, const String& params) {
-  if (ip.length() == 0) return false;
-  HTTPClient http;
-  http.setTimeout(2500);
+// Universal Network Action Dispatcher (Executes purely based on config parameters)
+bool TvController::executeNetworkAction(const String& transport, const String& url, const String& method, const String& headersJson, const String& payload) {
+  String t = transport;
+  t.toLowerCase();
 
-  String url = "http://" + ip + ":" + String(port > 0 ? port : 8060);
-
-  if (cmd.startsWith("LAUNCH_") || cmd.equalsIgnoreCase("launch")) {
-    String appId = params.length() > 0 ? params : cmd.substring(7);
-    url += "/launch/" + appId;
-  } else {
-    // Standard keypress mapping
-    String key = cmd;
-    if (cmd.equalsIgnoreCase("POWER") || cmd.equalsIgnoreCase("POWER_TOGGLE")) key = "Power";
-    else if (cmd.equalsIgnoreCase("VOL_UP") || cmd.equalsIgnoreCase("VOLUME_UP")) key = "VolumeUp";
-    else if (cmd.equalsIgnoreCase("VOL_DOWN") || cmd.equalsIgnoreCase("VOLUME_DOWN")) key = "VolumeDown";
-    else if (cmd.equalsIgnoreCase("MUTE")) key = "VolumeMute";
-    else if (cmd.equalsIgnoreCase("UP")) key = "Up";
-    else if (cmd.equalsIgnoreCase("DOWN")) key = "Down";
-    else if (cmd.equalsIgnoreCase("LEFT")) key = "Left";
-    else if (cmd.equalsIgnoreCase("RIGHT")) key = "Right";
-    else if (cmd.equalsIgnoreCase("OK") || cmd.equalsIgnoreCase("SELECT")) key = "Select";
-    else if (cmd.equalsIgnoreCase("BACK")) key = "Back";
-    else if (cmd.equalsIgnoreCase("HOME")) key = "Home";
-    else if (cmd.equalsIgnoreCase("PLAY") || cmd.equalsIgnoreCase("PLAY_PAUSE")) key = "Play";
-    else if (cmd.equalsIgnoreCase("FAST_FORWARD")) key = "Fwd";
-    else if (cmd.equalsIgnoreCase("REWIND")) key = "Rev";
-    else if (cmd.equalsIgnoreCase("INFO")) key = "Info";
-
-    url += "/keypress/" + key;
+  if (t == "http" || t == "rest") {
+    return sendGenericHttp(method, url, headersJson, payload);
+  } else if (t == "ws" || t == "websocket") {
+    return sendGenericWs(url, payload);
+  } else if (t == "wol" || t == "wakeonlan") {
+    return sendWakeOnLan(payload.length() > 0 ? payload : url);
   }
 
-  http.begin(url);
-  int httpCode = http.POST("");
-  http.end();
-
-  return (httpCode >= 200 && httpCode < 300);
-}
-
-// Sony Bravia IRCC-IP Protocol
-bool TvController::sendSonyCommand(const String& ip, uint16_t port, const String& token, const String& cmd, const String& params) {
-  if (ip.length() == 0) return false;
-  HTTPClient http;
-  http.setTimeout(2500);
-
-  String url = "http://" + ip + ":" + String(port > 0 ? port : 80) + "/sony/IRCC";
-  http.begin(url);
-  http.addHeader("Content-Type", "text/xml; charset=UTF-8");
-  http.addHeader("SOAPACTION", "\"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC\"");
-
-  if (token.length() > 0) {
-    http.addHeader("X-Auth-PSK", token);
-  }
-
-  // IRCC code resolution
-  String irccCode = params;
-  if (irccCode.length() == 0) {
-    if (cmd.equalsIgnoreCase("POWER") || cmd.equalsIgnoreCase("POWER_TOGGLE")) irccCode = "AAAAAQAAAAEAAAAVAw==";
-    else if (cmd.equalsIgnoreCase("VOL_UP") || cmd.equalsIgnoreCase("VOLUME_UP")) irccCode = "AAAAAQAAAAEAAAASAw==";
-    else if (cmd.equalsIgnoreCase("VOL_DOWN") || cmd.equalsIgnoreCase("VOLUME_DOWN")) irccCode = "AAAAAQAAAAEAAAATAw==";
-    else if (cmd.equalsIgnoreCase("MUTE")) irccCode = "AAAAAQAAAAEAAAAUAw==";
-    else if (cmd.equalsIgnoreCase("UP")) irccCode = "AAAAAQAAAAEAAAB0Aw==";
-    else if (cmd.equalsIgnoreCase("DOWN")) irccCode = "AAAAAQAAAAEAAAB1Aw==";
-    else if (cmd.equalsIgnoreCase("LEFT")) irccCode = "AAAAAQAAAAEAAAA0Aw==";
-    else if (cmd.equalsIgnoreCase("RIGHT")) irccCode = "AAAAAQAAAAEAAAAzAw==";
-    else if (cmd.equalsIgnoreCase("OK") || cmd.equalsIgnoreCase("SELECT")) irccCode = "AAAAAQAAAAEAAABlAw==";
-    else if (cmd.equalsIgnoreCase("HOME")) irccCode = "AAAAAQAAAAEAAABgAw==";
-    else if (cmd.equalsIgnoreCase("BACK")) irccCode = "AAAAAQAAAAEAAABjAw==";
-    else if (cmd.equalsIgnoreCase("PLAY")) irccCode = "AAAAAgAAAJcAAAAaAw==";
-    else if (cmd.equalsIgnoreCase("PAUSE")) irccCode = "AAAAAgAAAJcAAAAZAw==";
-    else if (cmd.equalsIgnoreCase("HDMI_1")) irccCode = "AAAAAgAAABoAAABaAw==";
-    else if (cmd.equalsIgnoreCase("HDMI_2")) irccCode = "AAAAAgAAABoAAABbAw==";
-    else if (cmd.equalsIgnoreCase("HDMI_3")) irccCode = "AAAAAgAAABoAAABcAw==";
-    else if (cmd.equalsIgnoreCase("HDMI_4")) irccCode = "AAAAAgAAABoAAABdAw==";
-  }
-
-  if (irccCode.length() == 0) {
-    http.end();
-    return false;
-  }
-
-  String soapBody = 
-    "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
-    "<s:Body>"
-    "<u:X_SendIRCC xmlns:u=\"urn:schemas-sony-com:service:IRCC:1\">"
-    "<IRCCCode>" + irccCode + "</IRCCCode>"
-    "</u:X_SendIRCC>"
-    "</s:Body>"
-    "</s:Envelope>";
-
-  int httpCode = http.POST(soapBody);
-  http.end();
-
-  return (httpCode == 200);
-}
-
-// LG webOS second-screen REST command dispatcher
-bool TvController::sendLgCommand(const String& ip, uint16_t port, const String& token, const String& cmd, const String& params) {
-  if (ip.length() == 0) return false;
-  HTTPClient http;
-  http.setTimeout(2500);
-
-  uint16_t targetPort = port > 0 ? port : 3000;
-  String url = "http://" + ip + ":" + String(targetPort) + "/roap/api/command";
-  http.begin(url);
-  http.addHeader("Content-Type", "application/atom+xml");
-
-  // Map command to LG RoAP keycode if applicable
-  String code = "1";
-  if (cmd.equalsIgnoreCase("POWER")) code = "1";
-  else if (cmd.equalsIgnoreCase("UP")) code = "12";
-  else if (cmd.equalsIgnoreCase("DOWN")) code = "13";
-  else if (cmd.equalsIgnoreCase("LEFT")) code = "14";
-  else if (cmd.equalsIgnoreCase("RIGHT")) code = "15";
-  else if (cmd.equalsIgnoreCase("OK")) code = "20";
-  else if (cmd.equalsIgnoreCase("HOME")) code = "21";
-  else if (cmd.equalsIgnoreCase("BACK")) code = "23";
-  else if (cmd.equalsIgnoreCase("VOL_UP")) code = "24";
-  else if (cmd.equalsIgnoreCase("VOL_DOWN")) code = "25";
-  else if (cmd.equalsIgnoreCase("MUTE")) code = "26";
-  else if (cmd.equalsIgnoreCase("PLAY")) code = "33";
-  else if (cmd.equalsIgnoreCase("PAUSE")) code = "34";
-
-  String xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?><command><name>HandleKeyInput</name><value>" + code + "</value></command>";
-  int httpCode = http.POST(xml);
-  http.end();
-  return (httpCode >= 200 && httpCode < 300);
-}
-
-// Samsung Tizen remote HTTP/REST dispatcher
-bool TvController::sendSamsungCommand(const String& ip, uint16_t port, const String& token, const String& cmd, const String& params) {
-  if (ip.length() == 0) return false;
-  HTTPClient http;
-  http.setTimeout(2500);
-
-  uint16_t targetPort = port > 0 ? port : 8001;
-  String url = "http://" + ip + ":" + String(targetPort) + "/api/v2/";
-  http.begin(url);
-  int httpCode = http.GET();
-  http.end();
-  return (httpCode >= 200 && httpCode < 400);
-}
-
-// Unified TV Command Dispatcher
-bool TvController::sendTvCommand(const String& protocol, const String& ip, uint16_t port, const String& token, const String& command, const String& params) {
-  if (command.equalsIgnoreCase("WOL") || command.equalsIgnoreCase("WAKE_ON_LAN")) {
-    return sendWakeOnLan(params.length() > 0 ? params : token);
-  }
-
-  if (protocol.equalsIgnoreCase("roku")) {
-    return sendRokuCommand(ip, port, command, params);
-  } else if (protocol.equalsIgnoreCase("sony") || protocol.equalsIgnoreCase("sony_bravia")) {
-    return sendSonyCommand(ip, port, token, command, params);
-  } else if (protocol.equalsIgnoreCase("lg") || protocol.equalsIgnoreCase("lg_webos")) {
-    return sendLgCommand(ip, port, token, command, params);
-  } else if (protocol.equalsIgnoreCase("samsung") || protocol.equalsIgnoreCase("samsung_tizen")) {
-    return sendSamsungCommand(ip, port, token, command, params);
-  }
-
-  Serial.println("[TV] Unknown TV protocol: " + protocol);
+  Serial.println("[TV] Unknown generic transport: " + transport);
   return false;
 }
