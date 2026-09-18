@@ -291,12 +291,21 @@ function renderWizardModal() {
       </div>
 
       <!-- Step Indicator Bar -->
-      <div style="display:flex;gap:6px;margin-bottom:20px;">
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
         <div id="barStep1" style="flex:1;height:4px;border-radius:2px;background:#3b82f6;"></div>
         <div id="barStep2" style="flex:1;height:4px;border-radius:2px;background:#334155;"></div>
         <div id="barStep3" style="flex:1;height:4px;border-radius:2px;background:#334155;"></div>
         <div id="barStep4" style="flex:1;height:4px;border-radius:2px;background:#334155;"></div>
       </div>
+
+      ${window.location.protocol === 'https:' ? `
+        <div style="background:#854d0e25;border:1px solid #eab30850;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:0.75rem;color:#fef08a;line-height:1.4;">
+          <strong>⚠️ Browser Security Note (HTTPS Context):</strong> You are viewing from GitHub Pages. Browsers block secure HTTPS pages from sending local Wi-Fi pairing commands directly to local devices. For automated TV pairing, open the wizard directly from your dongle:
+          <div style="margin-top:6px;">
+            <a href="http://tv-remote.local/?wizard=1" target="_blank" style="color:#60a5fa;text-decoration:underline;font-weight:600;">👉 Open http://tv-remote.local/?wizard=1</a>
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Wizard Step Content Container -->
       <div id="wizardStepBody"></div>
@@ -845,7 +854,21 @@ async function initiateTvPairingHandshake() {
     }
 
     if (msgEl) {
-      msgEl.innerHTML = '<span style="color:#ef4444;">&#x274C; Pairing timed out or was not allowed on TV screen. Make sure TV is on and select Retry.</span>';
+      if (window.location.protocol === 'https:') {
+        msgEl.innerHTML = `
+          <div style="background:#ef444420;border:1px solid #ef444460;border-radius:8px;padding:10px;text-align:left;font-size:0.75rem;">
+            <strong style="color:#f87171;display:block;margin-bottom:4px;">❌ Blocked by Browser Security (Mixed Content)</strong>
+            <span style="color:#cbd5e1;line-height:1.4;display:block;">
+              Because this page is loaded over <strong>HTTPS (GitHub Pages)</strong>, your browser blocks requests to local Wi-Fi devices. Open the wizard directly from your LilyGO dongle:
+            </span>
+            <a href="http://tv-remote.local/?wizard=1" target="_blank" style="display:inline-block;margin-top:8px;background:#2563eb;color:#fff;padding:6px 12px;border-radius:6px;font-weight:600;text-decoration:none;">
+              👉 Open http://tv-remote.local/?wizard=1
+            </a>
+          </div>
+        `;
+      } else {
+        msgEl.innerHTML = '<span style="color:#ef4444;">&#x274C; Pairing timed out or was not allowed on TV screen. Make sure TV is on and select Retry.</span>';
+      }
     }
     if (btn) {
       btn.disabled = false;
