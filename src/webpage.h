@@ -570,6 +570,12 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
             method: 'POST', 
             body: new URLSearchParams({ text: packet.slice(2), token: deviceToken }) 
           });
+        } else if (packet.startsWith('W:') || packet.startsWith('A:')) {
+          fetch('/api/test_action', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ packet: packet, token: deviceToken }) 
+          });
         }
       }
     }
@@ -730,6 +736,12 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
             sendTvApi(b.command || b.code, b.params || '');
           } else if (b.action === 'hybrid') {
             sendTvApi(b.command || b.code, b.params || '', true);
+          } else if (b.action === 'wifi') {
+            if (b.wifiType === 'url') {
+              sendWebhook(b.url, b.method, b.body);
+            } else {
+              sendTvApi(b.command || b.code, b.params || '', b.fallbackHid, b.tvBrand);
+            }
           }
         };
         grid.appendChild(el);
@@ -769,11 +781,18 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       return map[icon] || icon;
     }
 
-    function sendTvApi(cmd, params, fallbackHid) {
+    function sendTvApi(cmd, params, fallbackHid, brand) {
       vibrate();
-      const payload = JSON.stringify({ cmd: cmd, params: params || '', fallbackHid: fallbackHid || false });
+      const payload = JSON.stringify({ cmd: cmd, params: params || '', fallbackHid: fallbackHid || false, brand: brand || '' });
       sendPayload('A:' + payload);
       setToast('TV: ' + cmd);
+    }
+
+    function sendWebhook(url, method, body) {
+      vibrate();
+      const payload = JSON.stringify({ url: url, method: method || 'POST', body: body || '' });
+      sendPayload('W:' + payload);
+      setToast('Wi-Fi: ' + (method || 'POST'));
     }
 
     function sendMacro(script) {

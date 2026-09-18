@@ -28,6 +28,7 @@
 #include "tv_controller.h"
 #include <Update.h>
 #include <HTTPUpdate.h>
+#include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
 // USB HID objects
@@ -118,6 +119,7 @@ void setupRoutes();
 void handleKeyCommand(const String& key);
 void handleTextCommand(const String& text);
 void handleTvApiCommand(const String& payload);
+void handleWebhookCommand(const String& payload);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
 // Profile & Macro Prototypes
@@ -1308,8 +1310,17 @@ void handleTvApiCommand(const String& payload) {
   deserializeJson(profDoc, activeProfileJson);
 
   String protocol = profDoc["tvProtocol"].as<String>();
+  if (doc.containsKey("brand") && doc["brand"].as<String>().length() > 0) {
+    protocol = doc["brand"].as<String>();
+  }
   String ip = profDoc["tvIp"].as<String>();
+  if (doc.containsKey("ip") && doc["ip"].as<String>().length() > 0) {
+    ip = doc["ip"].as<String>();
+  }
   uint16_t port = profDoc["tvPort"] | 0;
+  if (doc.containsKey("port") && doc["port"].as<uint16_t>() > 0) {
+    port = doc["port"].as<uint16_t>();
+  }
   String tvId = profDoc["tvId"].as<String>();
   if (tvId.length() == 0) tvId = "default-tv";
 
@@ -1324,6 +1335,62 @@ void handleTvApiCommand(const String& payload) {
     Serial.println("[TV] Wi-Fi command failed or unconfigured, falling back to USB HID: " + cmd);
     handleKeyCommand(cmd);
   }
+}
+
+// Generic Wi-Fi Webhook / REST Dispatcher
+void handleWebhookCommand(const String& payload) {
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.println("[WEBHOOK] Invalid JSON in W: packet");
+    return;
+  }
+
+  String url = doc["url"].as<String>();
+  String method = doc["method"].as<String>();
+  String body = doc["body"].as<String>();
+  if (method.length() == 0) method = "POST";
+  method.toUpperCase();
+
+  if (url.length() == 0) {
+    Serial.println("[WEBHOOK] Empty URL in webhook command.");
+    return;
+  }
+
+  Serial.printf("[WEBHOOK] Dispatching %s %s\n", method.c_str(), url.c_str());
+
+  HTTPClient http;
+  WiFiClient client;
+  http.setTimeout(3000); // 3-second timeout
+
+  if (!http.begin(client, url)) {
+    Serial.println("[WEBHOOK] Failed to connect to URL: " + url);
+    return;
+  }
+
+  int httpCode = -1;
+  if (method == "POST") {
+    if (body.startsWith("{") || body.startsWith("[")) {
+      http.addHeader("Content-Type", "application/json");
+    } else if (body.length() > 0) {
+      http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    }
+    httpCode = http.POST(body);
+  } else if (method == "GET") {
+    httpCode = http.GET();
+  } else if (method == "PUT") {
+    http.addHeader("Content-Type", "application/json");
+    httpCode = http.PUT(body);
+  } else {
+    httpCode = http.sendRequest(method.c_str(), (uint8_t*)body.c_str(), body.length());
+  }
+
+  if (httpCode > 0) {
+    Serial.printf("[WEBHOOK] Success! HTTP Code: %d\n", httpCode);
+  } else {
+    Serial.printf("[WEBHOOK] Request failed: %s (code %d)\n", http.errorToString(httpCode).c_str(), httpCode);
+  }
+  http.end();
 }
 
 // WebSocket Event Handler (In-transit Decryption & Authentication)
@@ -1379,6 +1446,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         executeDuckyScript(msg.substring(2));
       } else if (msg.startsWith("A:")) {
         handleTvApiCommand(msg.substring(2));
+      } else if (msg.startsWith("W:")) {
+        handleWebhookCommand(msg.substring(2));
       }
       break;
     }
@@ -1747,6 +1816,72 @@ void setupRoutes() {
     } else {
       server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Command execution failed\"}");
     }
+  });
+
+  // Live Test Action Endpoint (Designer & Remote)
+  server.on("/api/test_action", HTTP_POST, []() {
+    if (!server.hasArg("plain")) {
+      server.send(400, "text/plain", "Missing body");
+      return;
+    }
+    String body = server.arg("plain");
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+      server.send(400, "text/plain", "Invalid JSON");
+      return;
+    }
+
+    String action = doc["action"].as<String>();
+    String packet = doc["packet"].as<String>();
+
+    if (packet.length() > 0) {
+      if (packet.startsWith("K:")) {
+        handleKeyCommand(packet.substring(2));
+      } else if (packet.startsWith("M:")) {
+        executeDuckyScript(packet.substring(2));
+      } else if (packet.startsWith("A:")) {
+        handleTvApiCommand(packet.substring(2));
+      } else if (packet.startsWith("W:")) {
+        handleWebhookCommand(packet.substring(2));
+      }
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+      return;
+    }
+
+    if (action == "hid") {
+      String code = doc["code"].as<String>();
+      handleKeyCommand(code);
+    } else if (action == "macro") {
+      String script = doc["macro"].as<String>();
+      executeDuckyScript(script);
+    } else if (action == "wifi" || action == "webhook" || action == "tv_api") {
+      String wifiType = doc["wifiType"].as<String>();
+      if (wifiType == "url" || action == "webhook" || doc.containsKey("url")) {
+        String url = doc["url"].as<String>();
+        String method = doc["method"] | "POST";
+        String reqBody = doc["body"] | "";
+        JsonDocument wDoc;
+        wDoc["url"] = url;
+        wDoc["method"] = method;
+        wDoc["body"] = reqBody;
+        String p;
+        serializeJson(wDoc, p);
+        handleWebhookCommand(p);
+      } else {
+        String cmd = doc["command"].as<String>();
+        String brand = doc["tvBrand"] | "";
+        bool fb = doc["fallbackHid"] | false;
+        JsonDocument aDoc;
+        aDoc["cmd"] = cmd;
+        aDoc["brand"] = brand;
+        aDoc["fallbackHid"] = fb;
+        String p;
+        serializeJson(aDoc, p);
+        handleTvApiCommand(p);
+      }
+    }
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
   });
 
   server.on("/api/tv/save_token", HTTP_POST, []() {

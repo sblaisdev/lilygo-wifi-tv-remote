@@ -271,6 +271,7 @@ const I18N = {
     actionType: "Action Type",
     optActHid: "Single HID Key (TV / PC Key)",
     optActMacro: "DuckyScript Macro (Script)",
+    optActWifi: "📡 Wi-Fi Commands (Smart TV & Web Links)",
     optActNone: "Empty Spacer",
     btnLabel: "Button Label",
     btnIcon: "Icon / Symbol",
@@ -297,6 +298,7 @@ const I18N = {
     optIconVideo: "🎥 YouTube / Video",
     optIconFilm: "🎬 Netflix / Film",
     optIconSearch: "🔍 Search",
+    optIconClear: "⌧ Clear / Delete",
     btnImportCustomIcon: "🖼️ Import Image Icon",
     customIconLoaded: "Custom image loaded",
     btnSpan: "Grid Span (Width)",
@@ -306,6 +308,21 @@ const I18N = {
     optSpan4: "4 Columns (Full Width on 4-col)",
     colorPalette: "Color Palette",
     hidKeyLabel: "Target HID Key",
+    wifiTypeLabel: "Command Type",
+    optWifiTypeTv: "📺 Smart TV Direct Command",
+    optWifiTypeUrl: "🌐 Custom Web Link / Webhook",
+    wifiTvBrandLabel: "TV System / Brand",
+    wifiTvCmdLabel: "Smart TV Command",
+    grpTvEssentials: "Essential Controls",
+    grpTvPlayback: "Playback",
+    grpTvApps: "Streaming Apps & Inputs",
+    wifiFallbackHidLabel: "Fallback to USB keyboard if TV Wi-Fi fails",
+    wifiUrlLabel: "Target Web Address (URL)",
+    wifiUrlHelp: "Trigger smart plugs, Home Assistant webhooks, or custom web links over Wi-Fi.",
+    wifiMethodLabel: "HTTP Method",
+    wifiBodyLabel: "Request Body / Payload (Optional)",
+    btnTestWifi: "⚡ Test Wi-Fi Command Now",
+    wifiTestSent: "Sent Wi-Fi Command to dongle 📡",
     tabBtnVisual: "Visual Builder",
     tabBtnRaw: "Raw DuckyScript",
     btnAddTypeText: "+ Type Text",
@@ -409,6 +426,7 @@ const I18N = {
     actionType: "Type d'action",
     optActHid: "Touche HID unique (TV / PC)",
     optActMacro: "Macro DuckyScript (Script)",
+    optActWifi: "📡 Commandes Wi-Fi (Smart TV & Liens Web)",
     optActNone: "Espaceur vide",
     btnLabel: "Texte du bouton",
     btnIcon: "Icône / Symbole",
@@ -435,6 +453,7 @@ const I18N = {
     optIconVideo: "🎥 YouTube / Vidéo",
     optIconFilm: "🎬 Netflix / Film",
     optIconSearch: "🔍 Recherche",
+    optIconClear: "⌧ Effacer / Supprimer",
     btnImportCustomIcon: "🖼️ Importer une image",
     customIconLoaded: "Image personnalisée chargée",
     btnSpan: "Largeur de grille (Colonnes)",
@@ -444,6 +463,21 @@ const I18N = {
     optSpan4: "4 colonnes (Pleine largeur sur 4 col)",
     colorPalette: "Palette de couleurs",
     hidKeyLabel: "Touche HID cible",
+    wifiTypeLabel: "Type de commande",
+    optWifiTypeTv: "📺 Commande directe Smart TV",
+    optWifiTypeUrl: "🌐 Lien Web personnalisé / Webhook",
+    wifiTvBrandLabel: "Système / Marque TV",
+    wifiTvCmdLabel: "Commande Smart TV",
+    grpTvEssentials: "Contrôles essentiels",
+    grpTvPlayback: "Lecture",
+    grpTvApps: "Applications & Entrées",
+    wifiFallbackHidLabel: "Basculer sur le clavier USB si le Wi-Fi TV échoue",
+    wifiUrlLabel: "Adresse Web cible (URL)",
+    wifiUrlHelp: "Contrôlez vos prises connectées, webhooks Home Assistant ou liens web personnalisés en Wi-Fi.",
+    wifiMethodLabel: "Méthode HTTP",
+    wifiBodyLabel: "Corps / Charge utile de la requête (Optionnel)",
+    btnTestWifi: "⚡ Tester la commande Wi-Fi maintenant",
+    wifiTestSent: "Commande Wi-Fi envoyée au dongle 📡",
     tabBtnVisual: "Générateur visuel",
     tabBtnRaw: "DuckyScript brut",
     btnAddTypeText: "+ Taper du texte",
@@ -845,11 +879,31 @@ function renderInspector() {
   form.style.display = 'flex';
 
   const b = curPage.buttons[selectedBtnIdx];
-  document.getElementById('btnAction').value = b.action || 'hid';
+  const isWifi = b.action === 'wifi' || b.action === 'tv_api' || b.action === 'webhook';
+  document.getElementById('btnAction').value = isWifi ? 'wifi' : (b.action || 'hid');
   document.getElementById('btnLabel').value = b.label || '';
   document.getElementById('btnIcon').value = b.icon || '';
   document.getElementById('btnSpan').value = b.span || 1;
   document.getElementById('hidKey').value = b.code || 'OK';
+
+  // Populate Wi-Fi Command properties
+  if (isWifi) {
+    const wType = document.getElementById('wifiType');
+    const isUrl = b.wifiType === 'url' || b.action === 'webhook' || !!b.url;
+    if (wType) wType.value = isUrl ? 'url' : 'tv';
+    const tvBrand = document.getElementById('wifiTvBrand');
+    if (tvBrand) tvBrand.value = b.tvBrand || 'roku';
+    const tvCmd = document.getElementById('wifiTvCmd');
+    if (tvCmd) tvCmd.value = b.command || 'POWER';
+    const fbHid = document.getElementById('wifiFallbackHid');
+    if (fbHid) fbHid.checked = !!b.fallbackHid;
+    const wUrl = document.getElementById('wifiUrl');
+    if (wUrl) wUrl.value = b.url || '';
+    const wMethod = document.getElementById('wifiMethod');
+    if (wMethod) wMethod.value = b.method || 'POST';
+    const wBody = document.getElementById('wifiBody');
+    if (wBody) wBody.value = b.body || '';
+  }
 
   // Custom icon preview
   const prevWrap = document.getElementById('customIconPreviewWrap');
@@ -878,21 +932,48 @@ function changeBtnAction() {
   const visualProps = document.getElementById('btnVisualProps');
   const hidConfig = document.getElementById('hidConfig');
   const macroConfig = document.getElementById('macroConfig');
+  const wifiConfig = document.getElementById('wifiConfig');
 
   if (act === 'none') {
     visualProps.style.display = 'none';
     hidConfig.style.display = 'none';
     macroConfig.style.display = 'none';
+    if (wifiConfig) wifiConfig.style.display = 'none';
   } else if (act === 'hid') {
     visualProps.style.display = 'block';
     hidConfig.style.display = 'block';
     macroConfig.style.display = 'none';
+    if (wifiConfig) wifiConfig.style.display = 'none';
   } else if (act === 'macro') {
     visualProps.style.display = 'block';
     hidConfig.style.display = 'none';
     macroConfig.style.display = 'block';
+    if (wifiConfig) wifiConfig.style.display = 'none';
+  } else if (act === 'wifi') {
+    visualProps.style.display = 'block';
+    hidConfig.style.display = 'none';
+    macroConfig.style.display = 'none';
+    if (wifiConfig) wifiConfig.style.display = 'flex';
+    changeWifiType();
   }
 
+  updateSelectedBtn();
+}
+
+function changeWifiType() {
+  const wTypeEl = document.getElementById('wifiType');
+  const wType = wTypeEl ? wTypeEl.value : 'tv';
+  const tvSettings = document.getElementById('wifiTvSettings');
+  const urlSettings = document.getElementById('wifiUrlSettings');
+  if (tvSettings && urlSettings) {
+    if (wType === 'url') {
+      tvSettings.style.display = 'none';
+      urlSettings.style.display = 'block';
+    } else {
+      tvSettings.style.display = 'block';
+      urlSettings.style.display = 'none';
+    }
+  }
   updateSelectedBtn();
 }
 
@@ -907,8 +988,41 @@ function updateSelectedBtn() {
   b.span = parseInt(document.getElementById('btnSpan').value, 10);
   b.code = document.getElementById('hidKey').value;
 
+  if (b.action === 'wifi') {
+    const wTypeEl = document.getElementById('wifiType');
+    b.wifiType = wTypeEl ? wTypeEl.value : 'tv';
+    if (b.wifiType === 'url') {
+      const urlEl = document.getElementById('wifiUrl');
+      const methodEl = document.getElementById('wifiMethod');
+      const bodyEl = document.getElementById('wifiBody');
+      b.url = urlEl ? urlEl.value.trim() : '';
+      b.method = methodEl ? methodEl.value : 'POST';
+      b.body = bodyEl ? bodyEl.value : '';
+      delete b.tvBrand;
+      delete b.command;
+      delete b.fallbackHid;
+    } else {
+      const brandEl = document.getElementById('wifiTvBrand');
+      const cmdEl = document.getElementById('wifiTvCmd');
+      const fbEl = document.getElementById('wifiFallbackHid');
+      b.tvBrand = brandEl ? brandEl.value : 'roku';
+      b.command = cmdEl ? cmdEl.value : 'POWER';
+      b.fallbackHid = fbEl ? fbEl.checked : false;
+      delete b.url;
+      delete b.method;
+      delete b.body;
+    }
+  }
+
   renderSimGrid();
   saveState();
+}
+
+async function testCurrentWifiCommand() {
+  const curPage = profile.pages[currentPageIdx];
+  if (selectedBtnIdx === null || !curPage || !curPage.buttons[selectedBtnIdx]) return;
+  const b = curPage.buttons[selectedBtnIdx];
+  await testButtonLive(b);
 }
 
 // Custom Image Icon Uploader
@@ -1334,6 +1448,14 @@ async function testButtonLive(btn) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ script: btn.macro, token: token })
       });
+    } else if (btn.action === 'wifi' || btn.action === 'tv_api' || btn.action === 'webhook') {
+      await fetch(`${host}/api/test_action`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(btn)
+      });
+      showToast(t('wifiTestSent'));
     }
   } catch (e) {
     console.warn('Live test dispatch failed:', e);
@@ -1417,7 +1539,8 @@ function getIconSymbol(icon) {
     'activity': '📊',
     'film': '🎬',
     'video': '🎥',
-    'search': '🔍'
+    'search': '🔍',
+    'x-square': '⌧'
   };
   return map[icon] || icon;
 }
