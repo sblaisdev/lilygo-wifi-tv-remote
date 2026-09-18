@@ -1476,7 +1476,8 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
 
       let binUrl = '';
       if (r.assets && r.assets.length > 0) {
-        const binAsset = r.assets.find(a => a.name.endsWith('.bin'));
+        const binAsset = r.assets.find(a => a.name === 'firmware.bin') || 
+                         r.assets.find(a => a.name.endsWith('.bin') && !a.name.includes('factory'));
         if (binAsset) binUrl = binAsset.browser_download_url;
       }
       if (!binUrl) {
@@ -1508,29 +1509,56 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
       const bar = document.getElementById('otaProgressBar');
 
       statusText.innerText = 'Starting installation of ' + versionTag + '...';
-      bar.style.width = '15%';
+      bar.style.width = '10%';
 
       const token = localStorage.getItem('tv_remote_token') || '';
       try {
         const params = new URLSearchParams({ url: url, version: versionTag, token: token });
-        fetch('/api/ota/cloud_update', { method: 'POST', body: params });
+        const res = await fetch('/api/ota/cloud_update', { method: 'POST', body: params });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Server rejected OTA request (status ' + res.status + ')');
+        }
 
-        let progress = 20;
-        const simTimer = setInterval(() => {
-          progress = Math.min(progress + 5, 90);
-          bar.style.width = progress + '%';
-          statusText.innerText = 'Dongle downloading & flashing ' + versionTag + '... (' + progress + '%)';
-        }, 1200);
-
-        setTimeout(() => {
-          clearInterval(simTimer);
-          bar.style.width = '100%';
-          statusText.innerText = 'Rebooting into new firmware! Reconnecting...';
-          setTimeout(() => { window.location.href = '/'; }, 6000);
-        }, 18000);
+        let pollCount = 0;
+        const pollTimer = setInterval(async () => {
+          pollCount++;
+          try {
+            const sRes = await fetch('/api/ota/status');
+            if (sRes.ok) {
+              const sData = await sRes.json();
+              if (sData.status === 'failed') {
+                clearInterval(pollTimer);
+                statusText.innerText = '❌ Update Failed: ' + (sData.error || 'Flashing error');
+                statusText.style.color = '#ef4444';
+                return;
+              } else if (sData.status === 'success') {
+                clearInterval(pollTimer);
+                bar.style.width = '100%';
+                statusText.innerText = '✔ Update Successful! Rebooting into ' + versionTag + '...';
+                statusText.style.color = '#34d399';
+                setTimeout(() => { window.location.href = '/'; }, 5000);
+                return;
+              } else if (sData.progress > 0) {
+                bar.style.width = sData.progress + '%';
+                statusText.innerText = 'Downloading & Flashing ' + versionTag + '... (' + sData.progress + '%)';
+              }
+            }
+          } catch (e) {
+            // Dongle rebooting - fetch dropped offline because dongle is restarting
+            if (pollCount > 3) {
+              clearInterval(pollTimer);
+              bar.style.width = '100%';
+              statusText.innerText = 'Rebooting into new firmware! Reconnecting...';
+              statusText.style.color = '#34d399';
+              setTimeout(() => { window.location.href = '/'; }, 6000);
+            }
+          }
+        }, 1500);
 
       } catch (err) {
         statusText.innerText = 'Error initiating update: ' + err.message;
+        statusText.style.color = '#ef4444';
       }
     }
   </script>

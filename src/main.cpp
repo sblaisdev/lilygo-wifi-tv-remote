@@ -94,6 +94,9 @@ unsigned long resetPromptStartTime = 0;
 // Profile & Macro Management
 String activeProfileId = DEFAULT_PROFILE_ID;
 bool isSdCardAvailable = false;
+String otaStatus = "idle";
+int otaProgressPct = 0;
+String otaLastError = "";
 
 // Forward declarations
 void initCrypto();
@@ -846,6 +849,10 @@ void showOtaErrorScreen(const String& err) {
 }
 
 bool performCloudUpdate(const String& url, const String& versionTag) {
+  otaStatus = "downloading";
+  otaProgressPct = 0;
+  otaLastError = "";
+
   Serial.printf("[OTA] Starting cloud update to %s from URL: %s\n", versionTag.c_str(), url.c_str());
   showOtaProgressScreen(versionTag, 0);
 
@@ -858,6 +865,7 @@ bool performCloudUpdate(const String& url, const String& versionTag) {
   httpUpdate.onProgress([versionTag](size_t current, size_t total) {
     if (total > 0) {
       int pct = (current * 100) / total;
+      otaProgressPct = pct;
       static int lastPct = -1;
       if (pct != lastPct) {
         lastPct = pct;
@@ -871,6 +879,8 @@ bool performCloudUpdate(const String& url, const String& versionTag) {
 
   switch (ret) {
     case HTTP_UPDATE_FAILED:
+      otaStatus = "failed";
+      otaLastError = httpUpdate.getLastErrorString();
       Serial.printf("[OTA] HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
       showOtaErrorScreen(httpUpdate.getLastErrorString());
       delay(4000);
@@ -878,10 +888,13 @@ bool performCloudUpdate(const String& url, const String& versionTag) {
       return false;
 
     case HTTP_UPDATE_NO_UPDATES:
+      otaStatus = "no_updates";
       Serial.println("[OTA] HTTP_UPDATE_NO_UPDATES");
       return false;
 
     case HTTP_UPDATE_OK:
+      otaStatus = "success";
+      otaProgressPct = 100;
       Serial.println("[OTA] HTTP_UPDATE_OK! Rebooting into new firmware...");
       showOtaSuccessScreen(versionTag);
       delay(2000);
@@ -2033,6 +2046,16 @@ void setupRoutes() {
 
     // Perform the cloud update directly from GitHub
     performCloudUpdate(url, ver);
+  });
+
+  server.on("/api/ota/status", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["status"] = otaStatus;
+    doc["progress"] = otaProgressPct;
+    doc["error"] = otaLastError;
+    String out;
+    serializeJson(doc, out);
+    server.send(200, "application/json", out);
   });
 
   // Manual Offline Firmware Upload (.bin) Handler

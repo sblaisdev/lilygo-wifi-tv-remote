@@ -55,13 +55,12 @@ jobs:
             .pio/build/t-dongle-s3/firmware.bin
             .pio/build/t-dongle-s3/firmware-factory.bin
 
-      - name: Upload Release Assets (firmware.bin & firmware-factory.bin)
+      - name: Upload Release Assets (firmware.bin only for OTA)
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             .pio/build/t-dongle-s3/firmware.bin
-            .pio/build/t-dongle-s3/firmware-factory.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
