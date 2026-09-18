@@ -43,6 +43,7 @@
       </div>
 
       <!-- Primary Simple Actions -->
+      <button id="btnSmartTvWizard" class="primary" onclick="openTvWizard()" style="font-size: 0.8rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6);" data-i18n="btnSmartTvWizard">&#x2728; Add Smart TV</button>
       <button id="btnLoadDongle" onclick="loadFromDongle()" style="font-size: 0.8rem; background: #0284c7;" data-i18n="btnLoadDongle">📥 Load from LilyGO</button>
       <button id="btnWifiDeploy" class="primary" onclick="deployToDongle()" style="font-size: 0.8rem;" data-i18n="btnWifiDeploy">🚀 Save to LilyGO</button>
 
@@ -366,5 +367,6 @@
   <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="onFileSelected(event)">
 
   <script src="app.js"></script>
+  <script src="tv_wizard.js"></script>
 </body>
 </html>

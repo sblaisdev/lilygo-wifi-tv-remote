@@ -43,6 +43,7 @@
       </div>
 
       <!-- Primary Simple Actions -->
+      <button id="btnSmartTvWizard" class="primary" onclick="openTvWizard()" style="font-size: 0.8rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6);" data-i18n="btnSmartTvWizard">&#x2728; Ajouter Smart TV</button>
       <button id="btnLoadDongle" onclick="loadFromDongle()" style="font-size: 0.8rem; background: #0284c7;" data-i18n="btnLoadDongle">📥 Charger depuis le LilyGO</button>
       <button id="btnWifiDeploy" class="primary" onclick="deployToDongle()" style="font-size: 0.8rem;" data-i18n="btnWifiDeploy">🚀 Enregistrer sur le LilyGO</button>
 
@@ -52,9 +53,6 @@
       <button id="btnCopy" class="advanced-only" onclick="copyProfileJson()" style="font-size: 0.8rem;" data-i18n="btnCopy">&#x1F4CB; Copier JSON</button>
       <button id="btnExport" class="advanced-only" onclick="exportProfile()" style="font-size: 0.8rem;" data-i18n="btnExport">&#x1F4BE; Exporter JSON</button>
       <button id="btnUsbDeploy" class="advanced-only" onclick="deployViaUsb()" style="font-size: 0.8rem; background: #8b5cf6;" data-i18n="btnUsbDeploy">&#x26A1; Déployer via USB</button>
-
-      <!-- Install Firmware Link -->
-      <a href="../install.html" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 0.8rem; font-weight: 600; background: #0f766e; color: #fff; border-radius: 8px; border: 1px solid #14b8a6;" title="Installateur Web de Firmware">⚡ Installer Firmware</a>
 
       <!-- Language Toggle -->
       <button id="btnLang" onclick="toggleLanguage()" style="font-size: 0.8rem; font-weight: bold; background: #334155; border: 1px solid #475569; border-radius: 8px; color: #fff; padding: 4px 10px; cursor: pointer;">🇬🇧 EN</button>
@@ -372,5 +370,6 @@
     window.DEFAULT_STUDIO_LANG = 'fr';
   </script>
   <script src="../app.js"></script>
+  <script src="../tv_wizard.js"></script>
 </body>
 </html>

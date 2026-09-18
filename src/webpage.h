@@ -726,6 +726,10 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
             sendKey(b.code);
           } else if (b.action === 'macro') {
             sendMacro(b.macro);
+          } else if (b.action === 'tv_api') {
+            sendTvApi(b.command || b.code, b.params || '');
+          } else if (b.action === 'hybrid') {
+            sendTvApi(b.command || b.code, b.params || '', true);
           }
         };
         grid.appendChild(el);
@@ -763,6 +767,13 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
         'x-square': '&#x2327;'
       };
       return map[icon] || icon;
+    }
+
+    function sendTvApi(cmd, params, fallbackHid) {
+      vibrate();
+      const payload = JSON.stringify({ cmd: cmd, params: params || '', fallbackHid: fallbackHid || false });
+      sendPayload('A:' + payload);
+      setToast('TV: ' + cmd);
     }
 
     function sendMacro(script) {
@@ -869,6 +880,49 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
       border: 1px solid #10b98140;
       margin-bottom: 14px;
     }
+    .tab-nav {
+      display: flex;
+      background: #181d28;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      width: 100%;
+    }
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 6px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .tv-device-card {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
     .form-group {
       display: flex;
       flex-direction: column;
@@ -944,79 +998,119 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
   <div class="container">
     <header>
       <img src="/icon.svg" class="brand-icon" alt="TV icon">
-      <h1>Wi-Fi &amp; Device Setup</h1>
+      <div>
+        <h1>Wi-Fi &amp; Device Setup</h1>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">%ROOM_NAME% &bull; LilyGO T-Dongle-S3</small>
+      </div>
     </header>
 
-    <div class="card">
-      %CRYPTO_STATUS_BADGE%
-      
-      <form action="/savewifi" method="POST">
-        <div class="form-group">
-          <label for="op_mode">Network Operating Mode</label>
-          <select id="op_mode" name="op_mode" onchange="toggleMode()">
-            <option value="sta" %MODE_STA_SELECTED%>Connect to Home Wi-Fi (Station)</option>
-            <option value="ap" %MODE_AP_SELECTED%>Standalone Private Wi-Fi (Access Point)</option>
-          </select>
-        </div>
+    <!-- Segmented Tab Navigation -->
+    <div class="tab-nav">
+      <button type="button" class="tab-btn active" id="btn-tab-network" onclick="switchTab('tab-network')">
+        <span>&#x1F310;</span> Network
+      </button>
+      <button type="button" class="tab-btn" id="btn-tab-tv" onclick="switchTab('tab-tv')">
+        <span>&#x1F4FA;</span> Smart TV
+      </button>
+      <button type="button" class="tab-btn" id="btn-tab-system" onclick="switchTab('tab-system')">
+        <span>&#x1F680;</span> System
+      </button>
+    </div>
 
-        <!-- Station Mode Section -->
-        <div id="staSection">
+    <!-- TAB 1: Network & Wi-Fi -->
+    <div id="tab-network" class="tab-content active">
+      <div class="card">
+        <form action="/savewifi" method="POST">
           <div class="form-group">
-            <label for="ssid">Select Wi-Fi Network</label>
-            <select id="ssid" name="ssid">
-              %WIFI_OPTIONS%
+            <label for="op_mode">Network Operating Mode</label>
+            <select id="op_mode" name="op_mode" onchange="toggleMode()">
+              <option value="sta" %MODE_STA_SELECTED%>Connect to Home Wi-Fi (Station)</option>
+              <option value="ap" %MODE_AP_SELECTED%>Standalone Private Wi-Fi (Access Point)</option>
             </select>
           </div>
 
+          <!-- Station Mode Section -->
+          <div id="staSection">
+            <div class="form-group">
+              <label for="ssid">Select Wi-Fi Network</label>
+              <select id="ssid" name="ssid">
+                %WIFI_OPTIONS%
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="ssid_custom">Or enter SSID manually</label>
+              <input type="text" id="ssid_custom" name="ssid_custom" placeholder="Network Name (if hidden)">
+            </div>
+          </div>
+
+          <!-- Standalone AP Mode Section -->
+          <div id="apSection" style="display: none;">
+            <div class="form-group">
+              <label for="ap_ssid">Access Point Name (SSID)</label>
+              <input type="text" id="ap_ssid" name="ap_ssid" value="%AP_SSID%" placeholder="e.g. My-TV-Remote">
+            </div>
+          </div>
+
           <div class="form-group">
-            <label for="ssid_custom">Or enter SSID manually</label>
-            <input type="text" id="ssid_custom" name="ssid_custom" placeholder="Network Name (if hidden)">
+            <label for="password">Wi-Fi Password</label>
+            <div class="password-wrapper">
+              <input type="password" id="password" name="password" placeholder="Enter password" required>
+              <button type="button" class="toggle-pwd" onclick="togglePassword()">Show</button>
+            </div>
           </div>
-        </div>
 
-        <!-- Standalone AP Mode Section -->
-        <div id="apSection" style="display: none;">
           <div class="form-group">
-            <label for="ap_ssid">Access Point Name (SSID)</label>
-            <input type="text" id="ap_ssid" name="ap_ssid" value="%AP_SSID%" placeholder="e.g. My-TV-Remote">
+            <label for="room">Room Name</label>
+            <input type="text" id="room" name="room" value="%ROOM_NAME%" placeholder="e.g. Living Room, Bedroom" required>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="password">Wi-Fi Password</label>
-          <div class="password-wrapper">
-            <input type="password" id="password" name="password" placeholder="Enter password" required>
-            <button type="button" class="toggle-pwd" onclick="togglePassword()">Show</button>
+          <div class="form-group">
+            <label for="hostname">mDNS Hostname</label>
+            <input type="text" id="hostname" name="hostname" value="%MDNS_HOSTNAME%" placeholder="e.g. tv-remote" required>
+            <small style="color: var(--text-muted); font-size: 0.75rem;">Access via http://&lt;hostname&gt;.local</small>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="room">Room Name</label>
-          <input type="text" id="room" name="room" value="%ROOM_NAME%" placeholder="e.g. Living Room, Bedroom" required>
-        </div>
-
-        <div class="form-group">
-          <label for="hostname">mDNS Hostname</label>
-          <input type="text" id="hostname" name="hostname" value="%MDNS_HOSTNAME%" placeholder="e.g. tv-remote" required>
-          <small style="color: var(--text-muted); font-size: 0.75rem;">Access via http://&lt;hostname&gt;.local</small>
-        </div>
-
-        <!-- Device Restriction Option -->
-        <div class="form-group" style="display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 6px 0;">
-          <input type="checkbox" id="auth_required" name="auth_required" value="1" %AUTH_CHECKED% style="width: 20px; height: 20px; margin-top: 2px;">
-          <div>
-            <label for="auth_required" style="cursor: pointer; display: block; font-weight: 600; color: #fff;">Restrict remote control to approved devices only</label>
-            <small style="color: var(--text-muted); font-size: 0.75rem; display: block; line-height: 1.3; margin-top: 2px;">Requires clicking the physical button on the TV stick to approve new phones.</small>
+          <!-- Device Restriction Option -->
+          <div class="form-group" style="display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 6px 0;">
+            <input type="checkbox" id="auth_required" name="auth_required" value="1" %AUTH_CHECKED% style="width: 20px; height: 20px; margin-top: 2px;">
+            <div>
+              <label for="auth_required" style="cursor: pointer; display: block; font-weight: 600; color: #fff;">Restrict remote control to approved devices only</label>
+              <small style="color: var(--text-muted); font-size: 0.75rem; display: block; line-height: 1.3; margin-top: 2px;">Requires clicking the physical button on the TV stick to approve new phones.</small>
+            </div>
           </div>
+
+          <button type="submit" class="btn-submit">Save &amp; Connect</button>
+        </form>
+
+        <p class="note">
+          Your Wi-Fi password will be encrypted using the ESP32-S3 Hardware HMAC key before being committed to flash memory.
+        </p>
+      </div>
+    </div>
+
+    <!-- TAB 2: Smart TV & Profiles -->
+    <div id="tab-tv" class="tab-content">
+      <div class="card">
+        <!-- Paired TV Hub Card -->
+        <div class="tv-device-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: #60a5fa; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+              <span>&#x1F4FA;</span> Smart TV Network Control
+            </strong>
+            <span class="badge" style="margin: 0; background: #10b98125; color: #34d399; border-color: #10b98140;">Wi-Fi API</span>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+            Control your TV directly over Wi-Fi without needing line-of-sight. Supports Roku, LG webOS, Samsung Tizen, and Sony Bravia.
+          </p>
+          <a href="https://sblaisdev.github.io/lilygo-wifi-tv-remote/?wizard=1" target="_blank" rel="noopener noreferrer" class="btn-submit" style="display: block; text-align: center; text-decoration: none; background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px; margin: 0; font-weight: 600;">
+            &#x2728; Discover &amp; Add Smart TV
+          </a>
         </div>
 
-        <button type="submit" class="btn-submit">Save &amp; Connect</button>
-      </form>
-
-      <!-- Device Profiles & Macro Management -->
-      <div style="border-top: 1px solid var(--card-border); padding-top: 16px; margin-top: 16px;">
-        <h3 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-          <span>&#x1F4F1;</span> Device Profile &amp; Layout
+        <!-- Profile Management -->
+        <h3 style="font-size: 1rem; color: var(--text); margin: 16px 0 10px 0; display: flex; align-items: center; gap: 8px;">
+          <span>&#x1F4F1;</span> Active Profile &amp; Layouts
         </h3>
         <div class="form-group">
           <label for="active_profile">Active Remote Profile</label>
@@ -1029,24 +1123,31 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
           <button type="button" class="btn-submit" onclick="deleteActiveProfile()" style="background: #ef4444; padding: 10px; width: auto; margin-top: 0;">Delete</button>
         </div>
 
-        <div class="form-group" style="margin-top: 12px;">
+        <div class="form-group" style="margin-top: 14px; border-top: 1px solid var(--card-border); padding-top: 14px;">
           <label for="profileUpload">Upload Custom Profile (.json)</label>
           <input type="file" id="profileUpload" accept=".json" style="font-size: 0.85rem; margin-bottom: 8px;">
           <button type="button" class="btn-submit" onclick="uploadProfileFile()" style="background: var(--accent); padding: 10px; margin-top: 0;">Upload Profile</button>
         </div>
 
         <div style="text-align: center; margin-top: 14px;">
-          <a href="https://sblaisdev.github.io/lilygo-wifi-tv-remote/" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.9rem; font-weight: 600; text-decoration: none;">&#x2728; Open Layout &amp; Macro Designer (GitHub Pages)</a>
+          <a href="https://sblaisdev.github.io/lilygo-wifi-tv-remote/" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.85rem; font-weight: 600; text-decoration: none;">&#x2728; Open Layout &amp; Macro Designer (GitHub Pages) &rarr;</a>
         </div>
       </div>
+    </div>
 
-      <!-- Firmware & Over-The-Air Updates -->
-      <div style="border-top: 1px solid var(--card-border); padding-top: 16px; margin-top: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3 style="font-size: 1.05rem; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
-            <span>&#x1F680;</span> Firmware &amp; Updates
-          </h3>
+    <!-- TAB 3: System & Updates -->
+    <div id="tab-system" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 1.1rem;">&#x1F680;</span>
+            <strong style="font-size: 0.95rem;">Firmware &amp; Hardware</strong>
+          </div>
           <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); margin: 0;">%FIRMWARE_VERSION%</span>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          %CRYPTO_STATUS_BADGE%
         </div>
 
         <!-- Test Device Toggle -->
@@ -1105,16 +1206,28 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
           </form>
         </details>
       </div>
-
-      <p class="note">
-        Your Wi-Fi password will be encrypted using the ESP32-S3 Hardware HMAC key before being committed to flash memory.
-      </p>
-
-      %BACK_LINK%
     </div>
+
+    %BACK_LINK%
   </div>
 
   <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(pane => pane.classList.remove('active'));
+      const targetBtn = document.getElementById('btn-' + tabId);
+      const targetPane = document.getElementById(tabId);
+      if (targetBtn) targetBtn.classList.add('active');
+      if (targetPane) targetPane.classList.add('active');
+      sessionStorage.setItem('active_setup_tab', tabId);
+    }
+
+    // Restore active tab
+    const savedSetupTab = sessionStorage.getItem('active_setup_tab');
+    if (savedSetupTab && document.getElementById(savedSetupTab)) {
+      switchTab(savedSetupTab);
+    }
+
     function togglePassword() {
       const pwd = document.getElementById('password');
       const btn = event.target;

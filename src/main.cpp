@@ -25,6 +25,7 @@
 #include <ArduinoJson.h>
 #include "default_profile.h"
 #include "webpage.h"
+#include "tv_controller.h"
 #include <Update.h>
 #include <HTTPUpdate.h>
 #include <WiFiClientSecure.h>
@@ -116,6 +117,7 @@ void showPairingSuccessScreen();
 void setupRoutes();
 void handleKeyCommand(const String& key);
 void handleTextCommand(const String& text);
+void handleTvApiCommand(const String& payload);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
 // Profile & Macro Prototypes
@@ -191,6 +193,9 @@ void initCrypto() {
     Serial.println("[SECURITY] WARNING: No HMAC key available and could not allocate eFuse slot.");
     hmacAvailable = false;
   }
+
+  // Initialize Smart TV Controller crypto & credentials
+  tvController.begin(hmacKeySlot, hmacAvailable);
 }
 
 // Auto-Detect & Reuse eFuse HMAC key slot (GEMINI.md Rule)
@@ -1284,6 +1289,43 @@ void handleKeyCommand(const String& key) {
   Serial.printf("[HID] Dispatched key: %s (status: %u)\n", key.c_str(), (unsigned)p);
 }
 
+// Smart TV Wi-Fi API Command Dispatcher with Smart Hybrid Fallback
+void handleTvApiCommand(const String& payload) {
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.println("[TV] Invalid JSON in A: packet");
+    return;
+  }
+
+  String cmd = doc["cmd"].as<String>();
+  String params = doc["params"].as<String>();
+  bool fallbackHid = doc["fallbackHid"] | false;
+
+  // Query active profile to determine TV protocol and IP
+  String activeProfileJson = getActiveProfileJson();
+  JsonDocument profDoc;
+  deserializeJson(profDoc, activeProfileJson);
+
+  String protocol = profDoc["tvProtocol"].as<String>();
+  String ip = profDoc["tvIp"].as<String>();
+  uint16_t port = profDoc["tvPort"] | 0;
+  String tvId = profDoc["tvId"].as<String>();
+  if (tvId.length() == 0) tvId = "default-tv";
+
+  String token = tvController.getTvToken(tvId);
+
+  bool success = false;
+  if (protocol.length() > 0 && ip.length() > 0) {
+    success = tvController.sendTvCommand(protocol, ip, port, token, cmd, params);
+  }
+
+  if (!success && fallbackHid) {
+    Serial.println("[TV] Wi-Fi command failed or unconfigured, falling back to USB HID: " + cmd);
+    handleKeyCommand(cmd);
+  }
+}
+
 // WebSocket Event Handler (In-transit Decryption & Authentication)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   if (num >= MAX_WS_CLIENTS) return;
@@ -1335,6 +1377,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         handleKeyCommand(msg.substring(2));
       } else if (msg.startsWith("M:")) {
         executeDuckyScript(msg.substring(2));
+      } else if (msg.startsWith("A:")) {
+        handleTvApiCommand(msg.substring(2));
       }
       break;
     }
@@ -1673,6 +1717,66 @@ void setupRoutes() {
     } else {
       server.send(400, "text/plain", "Missing key");
     }
+  });
+
+  // ==========================================
+  // Smart TV Wi-Fi API Endpoints
+  // ==========================================
+  server.on("/api/tv/discover", HTTP_GET, []() {
+    String json = tvController.discoverTvsJson();
+    server.send(200, "application/json", json);
+  });
+
+  server.on("/api/tv/command", HTTP_POST, []() {
+    String cmd = server.hasArg("cmd") ? server.arg("cmd") : "";
+    String protocol = server.hasArg("protocol") ? server.arg("protocol") : "";
+    String ip = server.hasArg("ip") ? server.arg("ip") : "";
+    uint16_t port = server.hasArg("port") ? server.arg("port").toInt() : 0;
+    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "default-tv";
+    String params = server.hasArg("params") ? server.arg("params") : "";
+
+    if (cmd.length() == 0 || protocol.length() == 0 || ip.length() == 0) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing required parameters\"}");
+      return;
+    }
+
+    String token = tvController.getTvToken(tvId);
+    bool ok = tvController.sendTvCommand(protocol, ip, port, token, cmd, params);
+    if (ok) {
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Command execution failed\"}");
+    }
+  });
+
+  server.on("/api/tv/save_token", HTTP_POST, []() {
+    if (authRequired) {
+      String clientToken = server.hasArg("token") ? server.arg("token") : "";
+      if (!verifyDeviceToken(clientToken)) {
+        server.send(401, "application/json", "{\"status\":\"unauthorized\"}");
+        return;
+      }
+    }
+
+    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "";
+    String secret = server.hasArg("secret") ? server.arg("secret") : "";
+
+    if (tvId.length() == 0 || secret.length() == 0) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing tv_id or secret\"}");
+      return;
+    }
+
+    if (tvController.saveTvToken(tvId, secret)) {
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to encrypt and save token\"}");
+    }
+  });
+
+  server.on("/api/tv/token_status", HTTP_GET, []() {
+    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "";
+    bool exists = tvController.hasTvToken(tvId);
+    server.send(200, "application/json", String("{\"has_token\":") + (exists ? "true" : "false") + "}");
   });
 
   // ==========================================

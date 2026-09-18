@@ -6,7 +6,7 @@
 #define DEFAULT_ROOM_NAME       "Living Room"
 #define DEFAULT_MDNS_HOSTNAME   "tv-remote"
 #define DEFAULT_AP_SSID         "TV-Remote-Setup"
-#define FIRMWARE_VERSION        "v1.3.2-beta"
+#define FIRMWARE_VERSION        "v1.4.0-beta"
 #define GITHUB_REPO             "sblaisdev/lilygo-wifi-tv-remote"
 
 // ==========================================
@@ -36,3 +36,13 @@
 #define PROFILES_DIR            "/profiles"
 #define ACTIVE_PROFILE_FILE     "/profiles/active.txt"
 #define DEFAULT_PROFILE_ID      "default-tv"
+
+// ==========================================
+// Smart TV Wi-Fi API & Discovery Definitions
+// ==========================================
+#define HMAC_CTX_TV_TOKEN       "project-tv-token-v1"
+#define TV_SSDP_MULTICAST_IP    "239.255.255.250"
+#define TV_SSDP_PORT            1900
+#define TV_WOL_PORT             9
+#define TV_DISCOVERY_TIMEOUT_MS 3000
+#define NVS_TV_NAMESPACE        "tv_tokens"

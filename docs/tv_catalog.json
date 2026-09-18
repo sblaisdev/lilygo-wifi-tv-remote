@@ -1,0 +1,187 @@
+{
+  "version": "1.0.0",
+  "catalog": [
+    {
+      "id": "roku",
+      "name": "Roku TV / Streaming Player",
+      "brand": "roku",
+      "protocol": "roku",
+      "defaultPort": 8060,
+      "authType": "none",
+      "discoveryMatch": ["roku:ecp", "roku"],
+      "description": "Direct HTTP REST commands over port 8060. Zero authentication required.",
+      "commands": {
+        "navigation": [
+          { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "POWER", "span": 1 },
+          { "label": "HOME", "icon": "home", "color": "#475569", "command": "HOME", "span": 1 },
+          { "label": "BACK", "icon": "corner-down-left", "color": "#475569", "command": "BACK", "span": 1 },
+          { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "UP", "span": 1 },
+          { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "DOWN", "span": 1 },
+          { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "LEFT", "span": 1 },
+          { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "RIGHT", "span": 1 },
+          { "label": "OK", "icon": "check", "color": "#3b82f6", "command": "OK", "span": 1 },
+          { "label": "INFO", "icon": "info", "color": "#475569", "command": "INFO", "span": 1 }
+        ],
+        "audio": [
+          { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "VOL_UP", "span": 1 },
+          { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "VOL_DOWN", "span": 1 },
+          { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "MUTE", "span": 1 }
+        ],
+        "media": [
+          { "label": "PLAY / PAUSE", "icon": "play", "color": "#06b6d4", "command": "PLAY", "span": 1 },
+          { "label": "REWIND", "icon": "skip-back", "color": "#334155", "command": "REWIND", "span": 1 },
+          { "label": "FORWARD", "icon": "skip-forward", "color": "#334155", "command": "FAST_FORWARD", "span": 1 }
+        ],
+        "apps": [
+          { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "LAUNCH_12", "span": 1 },
+          { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "LAUNCH_837", "span": 1 },
+          { "label": "Prime Video", "icon": "film", "color": "#0284c7", "command": "LAUNCH_13", "span": 1 },
+          { "label": "Disney+", "icon": "film", "color": "#1d4ed8", "command": "LAUNCH_291097", "span": 1 },
+          { "label": "Apple TV", "icon": "film", "color": "#374151", "command": "LAUNCH_551012", "span": 1 },
+          { "label": "Spotify", "icon": "activity", "color": "#15803d", "command": "LAUNCH_22271", "span": 1 }
+        ],
+        "inputs": [
+          { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "LAUNCH_tvinput.hdmi1", "span": 1 },
+          { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "LAUNCH_tvinput.hdmi2", "span": 1 },
+          { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "LAUNCH_tvinput.hdmi3", "span": 1 },
+          { "label": "Live TV", "icon": "tv", "color": "#475569", "command": "LAUNCH_tvinput.dtv", "span": 1 }
+        ]
+      }
+    },
+    {
+      "id": "lg_webos",
+      "name": "LG Smart TV (webOS)",
+      "brand": "lg",
+      "protocol": "lg_webos",
+      "defaultPort": 3000,
+      "authType": "prompt",
+      "discoveryMatch": ["webos", "lge-com", "lg"],
+      "description": "WebSocket / REST control. One-time pairing prompt shown on TV screen.",
+      "commands": {
+        "navigation": [
+          { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "POWER", "span": 1 },
+          { "label": "HOME", "icon": "home", "color": "#475569", "command": "HOME", "span": 1 },
+          { "label": "BACK", "icon": "corner-down-left", "color": "#475569", "command": "BACK", "span": 1 },
+          { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "UP", "span": 1 },
+          { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "DOWN", "span": 1 },
+          { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "LEFT", "span": 1 },
+          { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "RIGHT", "span": 1 },
+          { "label": "OK", "icon": "check", "color": "#3b82f6", "command": "OK", "span": 1 },
+          { "label": "EXIT", "icon": "x", "color": "#475569", "command": "EXIT", "span": 1 }
+        ],
+        "audio": [
+          { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "VOL_UP", "span": 1 },
+          { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "VOL_DOWN", "span": 1 },
+          { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "MUTE", "span": 1 }
+        ],
+        "media": [
+          { "label": "PLAY", "icon": "play", "color": "#06b6d4", "command": "PLAY", "span": 1 },
+          { "label": "PAUSE", "icon": "pause", "color": "#06b6d4", "command": "PAUSE", "span": 1 },
+          { "label": "STOP", "icon": "x-square", "color": "#64748b", "command": "STOP", "span": 1 }
+        ],
+        "apps": [
+          { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "LAUNCH_netflix", "span": 1 },
+          { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "LAUNCH_youtube.leanback.v4", "span": 1 },
+          { "label": "Prime Video", "icon": "film", "color": "#0284c7", "command": "LAUNCH_amazon", "span": 1 },
+          { "label": "Disney+", "icon": "film", "color": "#1d4ed8", "command": "LAUNCH_com.disney.disneyplus-prod", "span": 1 },
+          { "label": "Apple TV", "icon": "film", "color": "#374151", "command": "LAUNCH_com.apple.appletv", "span": 1 }
+        ],
+        "inputs": [
+          { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "INPUT_HDMI_1", "span": 1 },
+          { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "INPUT_HDMI_2", "span": 1 },
+          { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "INPUT_HDMI_3", "span": 1 },
+          { "label": "HDMI 4", "icon": "monitor", "color": "#475569", "command": "INPUT_HDMI_4", "span": 1 }
+        ]
+      }
+    },
+    {
+      "id": "samsung_tizen",
+      "name": "Samsung Smart TV (Tizen)",
+      "brand": "samsung",
+      "protocol": "samsung_tizen",
+      "defaultPort": 8001,
+      "authType": "prompt",
+      "discoveryMatch": ["samsung", "tizen", "dial-multiscreen"],
+      "description": "WebSocket channel on port 8001/8002. Displays pairing approval dialog on TV screen.",
+      "commands": {
+        "navigation": [
+          { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "KEY_POWER", "span": 1 },
+          { "label": "HOME", "icon": "home", "color": "#475569", "command": "KEY_HOME", "span": 1 },
+          { "label": "RETURN", "icon": "corner-down-left", "color": "#475569", "command": "KEY_RETURN", "span": 1 },
+          { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "KEY_UP", "span": 1 },
+          { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "KEY_DOWN", "span": 1 },
+          { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "KEY_LEFT", "span": 1 },
+          { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "KEY_RIGHT", "span": 1 },
+          { "label": "ENTER", "icon": "check", "color": "#3b82f6", "command": "KEY_ENTER", "span": 1 },
+          { "label": "MENU", "icon": "layers", "color": "#475569", "command": "KEY_MENU", "span": 1 }
+        ],
+        "audio": [
+          { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "KEY_VOLUP", "span": 1 },
+          { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "KEY_VOLDOWN", "span": 1 },
+          { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "KEY_MUTE", "span": 1 }
+        ],
+        "media": [
+          { "label": "PLAY", "icon": "play", "color": "#06b6d4", "command": "KEY_PLAY", "span": 1 },
+          { "label": "PAUSE", "icon": "pause", "color": "#06b6d4", "command": "KEY_PAUSE", "span": 1 },
+          { "label": "STOP", "icon": "x-square", "color": "#64748b", "command": "KEY_STOP", "span": 1 }
+        ],
+        "apps": [
+          { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "LAUNCH_3201907018807", "span": 1 },
+          { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "LAUNCH_111299001912", "span": 1 },
+          { "label": "Prime Video", "icon": "film", "color": "#0284c7", "command": "LAUNCH_3201512006785", "span": 1 },
+          { "label": "Disney+", "icon": "film", "color": "#1d4ed8", "command": "LAUNCH_3201901017640", "span": 1 },
+          { "label": "Apple TV", "icon": "film", "color": "#374151", "command": "LAUNCH_3201807016597", "span": 1 }
+        ],
+        "inputs": [
+          { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "KEY_HDMI1", "span": 1 },
+          { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "KEY_HDMI2", "span": 1 },
+          { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "KEY_HDMI3", "span": 1 },
+          { "label": "TV Source", "icon": "tv", "color": "#475569", "command": "KEY_SOURCE", "span": 1 }
+        ]
+      }
+    },
+    {
+      "id": "sony_bravia",
+      "name": "Sony Bravia Smart TV",
+      "brand": "sony",
+      "protocol": "sony_bravia",
+      "defaultPort": 80,
+      "authType": "psk_or_pin",
+      "discoveryMatch": ["sony", "ircc", "bravia"],
+      "description": "IRCC-IP REST control over HTTP/HTTPS with Pre-Shared Key (PSK) or 4-digit PIN authentication.",
+      "commands": {
+        "navigation": [
+          { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "POWER", "params": "AAAAAQAAAAEAAAAVAw==", "span": 1 },
+          { "label": "HOME", "icon": "home", "color": "#475569", "command": "HOME", "params": "AAAAAQAAAAEAAABgAw==", "span": 1 },
+          { "label": "BACK", "icon": "corner-down-left", "color": "#475569", "command": "BACK", "params": "AAAAAQAAAAEAAABjAw==", "span": 1 },
+          { "label": "UP", "icon": "arrow-up", "color": "#334155", "command": "UP", "params": "AAAAAQAAAAEAAAB0Aw==", "span": 1 },
+          { "label": "DOWN", "icon": "arrow-down", "color": "#334155", "command": "DOWN", "params": "AAAAAQAAAAEAAAB1Aw==", "span": 1 },
+          { "label": "LEFT", "icon": "arrow-left", "color": "#334155", "command": "LEFT", "params": "AAAAAQAAAAEAAAA0Aw==", "span": 1 },
+          { "label": "RIGHT", "icon": "arrow-right", "color": "#334155", "command": "RIGHT", "params": "AAAAAQAAAAEAAAAzAw==", "span": 1 },
+          { "label": "OK", "icon": "check", "color": "#3b82f6", "command": "OK", "params": "AAAAAQAAAAEAAABlAw==", "span": 1 },
+          { "label": "EXIT", "icon": "x", "color": "#475569", "command": "EXIT", "params": "AAAAAQAAAAEAAABiAw==", "span": 1 }
+        ],
+        "audio": [
+          { "label": "VOL +", "icon": "volume-2", "color": "#10b981", "command": "VOL_UP", "params": "AAAAAQAAAAEAAAASAw==", "span": 1 },
+          { "label": "VOL -", "icon": "volume-1", "color": "#10b981", "command": "VOL_DOWN", "params": "AAAAAQAAAAEAAAATAw==", "span": 1 },
+          { "label": "MUTE", "icon": "volume-x", "color": "#64748b", "command": "MUTE", "params": "AAAAAQAAAAEAAAAUAw==", "span": 1 }
+        ],
+        "media": [
+          { "label": "PLAY", "icon": "play", "color": "#06b6d4", "command": "PLAY", "params": "AAAAAgAAAJcAAAAaAw==", "span": 1 },
+          { "label": "PAUSE", "icon": "pause", "color": "#06b6d4", "command": "PAUSE", "params": "AAAAAgAAAJcAAAAZAw==", "span": 1 },
+          { "label": "STOP", "icon": "x-square", "color": "#64748b", "command": "STOP", "params": "AAAAAgAAAJcAAAAYAw==", "span": 1 }
+        ],
+        "apps": [
+          { "label": "Netflix", "icon": "film", "color": "#dc2626", "command": "NETFLIX", "params": "AAAAAgAAABoAAAB8Aw==", "span": 1 },
+          { "label": "YouTube", "icon": "video", "color": "#e11d48", "command": "YOUTUBE", "params": "AAAAAgAAAMQAAABHAw==", "span": 1 }
+        ],
+        "inputs": [
+          { "label": "HDMI 1", "icon": "monitor", "color": "#475569", "command": "HDMI_1", "params": "AAAAAgAAABoAAABaAw==", "span": 1 },
+          { "label": "HDMI 2", "icon": "monitor", "color": "#475569", "command": "HDMI_2", "params": "AAAAAgAAABoAAABbAw==", "span": 1 },
+          { "label": "HDMI 3", "icon": "monitor", "color": "#475569", "command": "HDMI_3", "params": "AAAAAgAAABoAAABcAw==", "span": 1 },
+          { "label": "HDMI 4", "icon": "monitor", "color": "#475569", "command": "HDMI_4", "params": "AAAAAgAAABoAAABdAw==", "span": 1 }
+        ]
+      }
+    }
+  ]
+}
