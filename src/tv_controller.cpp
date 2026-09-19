@@ -171,6 +171,15 @@ bool TvController::hasTvToken(const String& deviceId) {
   return exists;
 }
 
+bool TvController::deleteTvToken(const String& deviceId) {
+  String safeKey = sanitizeNvsKey(deviceId);
+  Preferences p;
+  if (!p.begin(NVS_TV_NAMESPACE, false)) return false;
+  bool ok = p.remove(safeKey.c_str());
+  p.end();
+  return ok;
+}
+
 // Generic SSDP Discovery (Standard UPnP M-SEARCH on UDP 1900)
 String TvController::discoverTvsJson() {
   std::vector<DiscoveredDevice> found;

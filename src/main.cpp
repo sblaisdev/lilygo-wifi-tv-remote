@@ -1984,6 +1984,12 @@ void setupRoutes() {
     }
   });
 
+  server.on("/api/tv/clear_token", HTTP_POST, []() {
+    String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "tv_130_208";
+    tvController.deleteTvToken(tvId);
+    server.send(200, "application/json", "{\"status\":\"ok\",\"cleared\":true}");
+  });
+
   server.on("/api/tv/token_status", HTTP_GET, []() {
     String tvId = server.hasArg("tv_id") ? server.arg("tv_id") : "";
     bool exists = tvController.hasTvToken(tvId);

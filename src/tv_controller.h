@@ -36,6 +36,7 @@ public:
   bool saveTvToken(const String& deviceId, const String& token);
   String getTvToken(const String& deviceId);
   bool hasTvToken(const String& deviceId);
+  bool deleteTvToken(const String& deviceId);
 
   // Pure Generic Transport Dispatchers (Zero Vendor Code!)
   bool executeNetworkAction(const String& transport, const String& url, const String& method, const String& headersJson, const String& payload);
