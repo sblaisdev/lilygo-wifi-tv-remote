@@ -10,17 +10,17 @@ const FALLBACK_TV_CATALOG = [
     "name": "Samsung Smart TV (Tizen)",
     "brand": "samsung",
     "protocol": "samsung_tizen",
-    "defaultPort": 8001,
+    "defaultPort": 8002,
     "authType": "prompt",
     "transport": "ws",
     "method": "",
-    "urlTemplate": "ws://{tv_ip}:{port}/api/v2/channels/samsung.remote.control?name=TGlseUdPIFJlbW90ZQ==&token={token}",
+    "urlTemplate": "wss://{tv_ip}:{port}/api/v2/channels/samsung.remote.control?name=TGlseUdPIFJlbW90ZQ==&token={token}",
     "headersTemplate": "",
     "payloadTemplate": "{\"method\":\"ms.remote.control\",\"params\":{\"Cmd\":\"Click\",\"DataOfCmd\":\"{cmd}\",\"Option\":\"false\",\"TypeOfRemote\":\"SendRemoteKey\"}}",
-    "pairingUrl": "ws://{tv_ip}:{port}/api/v2/channels/samsung.remote.control?name=TGlseUdPIFJlbW90ZQ==",
+    "pairingUrl": "wss://{tv_ip}:{port}/api/v2/channels/samsung.remote.control?name=TGlseUdPIFJlbW90ZQ==",
     "pairingPayload": "",
-    "discoveryMatch": ["samsung", "tizen", "dial-multiscreen", "sec-websocket", "8001"],
-    "description": "WebSocket channel on port 8001. Displays pairing approval popup on TV screen.",
+    "discoveryMatch": ["samsung", "tizen", "dial-multiscreen", "sec-websocket", "8001", "8002"],
+    "description": "Secure WebSocket channel on port 8002 (WSS). Displays pairing approval popup on TV screen.",
     "commands": {
       "navigation": [
         { "label": "POWER", "icon": "power", "color": "#ef4444", "command": "KEY_POWER", "span": 1 },
@@ -445,7 +445,7 @@ async function identifyDevice(dev) {
     id: dev.id || `tv-${ip.replace(/\./g, '-')}`,
     name: dev.name && !dev.name.startsWith('Device') ? dev.name : `${matchedCatalog.name} (${ip})`,
     ip: ip,
-    port: (dev.port && dev.port > 0 && dev.port !== 80) ? dev.port : matchedCatalog.defaultPort,
+    port: (matchedCatalog.brand === 'samsung') ? 8002 : ((dev.port && dev.port > 0 && dev.port !== 80) ? dev.port : matchedCatalog.defaultPort),
     brand: matchedCatalog.brand,
     protocol: matchedCatalog.protocol,
     catalogEntry: matchedCatalog
@@ -748,8 +748,10 @@ async function saveKeyAndVerify() {
 
   const baseUrl = getBaseApiUrl();
   try {
+    const parts = (selectedTv.ip || '').split('.');
+    const safeTvId = (parts.length === 4) ? `tv_${parts[2]}_${parts[3]}` : (selectedTv.id || 'default_tv').slice(0, 15);
     const params = new URLSearchParams({
-      tv_id: selectedTv.id,
+      tv_id: safeTvId,
       secret: secret
     });
     const res = await fetch(baseUrl + '/api/tv/save_token', { method: 'POST', body: params });
@@ -819,10 +821,12 @@ async function initiateTvPairingHandshake() {
   const baseUrl = getBaseApiUrl();
 
   try {
+    const parts = (selectedTv.ip || '').split('.');
+    const safeTvId = (parts.length === 4) ? `tv_${parts[2]}_${parts[3]}` : (selectedTv.id || 'default_tv').slice(0, 15);
     const params = new URLSearchParams({
       url: pairUrl,
       payload: pairPayload,
-      tv_id: selectedTv.id,
+      tv_id: safeTvId,
       timeout: '25000'
     });
 

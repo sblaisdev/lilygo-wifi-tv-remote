@@ -127,32 +127,46 @@ String TvController::decryptToken(const String& cipherHex) {
   return plain;
 }
 
+static String sanitizeNvsKey(const String& key) {
+  if (key.length() <= 15) return key;
+  uint32_t h = 5381;
+  for (size_t i = 0; i < key.length(); i++) {
+    h = ((h << 5) + h) + (uint8_t)key[i];
+  }
+  char buf[16];
+  snprintf(buf, sizeof(buf), "tv_%08x", (unsigned int)h);
+  return String(buf);
+}
+
 bool TvController::saveTvToken(const String& deviceId, const String& token) {
   if (deviceId.length() == 0 || token.length() == 0) return false;
   String cipher = encryptToken(token);
   if (cipher.length() == 0) return false;
 
+  String safeKey = sanitizeNvsKey(deviceId);
   Preferences p;
   if (!p.begin(NVS_TV_NAMESPACE, false)) return false;
-  size_t written = p.putString(deviceId.c_str(), cipher);
+  size_t written = p.putString(safeKey.c_str(), cipher);
   p.end();
   return (written > 0);
 }
 
 String TvController::getTvToken(const String& deviceId) {
   if (deviceId.length() == 0) return "";
+  String safeKey = sanitizeNvsKey(deviceId);
   Preferences p;
   if (!p.begin(NVS_TV_NAMESPACE, true)) return "";
-  String cipher = p.getString(deviceId.c_str(), "");
+  String cipher = p.getString(safeKey.c_str(), "");
   p.end();
   if (cipher.length() == 0) return "";
   return decryptToken(cipher);
 }
 
 bool TvController::hasTvToken(const String& deviceId) {
+  String safeKey = sanitizeNvsKey(deviceId);
   Preferences p;
   if (!p.begin(NVS_TV_NAMESPACE, true)) return false;
-  bool exists = p.isKey(deviceId.c_str());
+  bool exists = p.isKey(safeKey.c_str());
   p.end();
   return exists;
 }
@@ -347,43 +361,60 @@ bool TvController::sendGenericWs(const String& url, const String& payload) {
     port = hostPort.substring(colonIdx + 1).toInt();
   }
 
+  if (port == 8002) isWss = true;
   // Safety correction: if port was unspecified or default HTTP (80) on a Samsung WS endpoint
   if ((port == 80 || port == 0) && path.indexOf("samsung") >= 0) {
-    port = 8001;
+    port = 8002;
+    isWss = true;
   }
 
-  WebSocketsClient client;
-  bool messageSent = false;
-  bool connected = false;
+  struct WsPortCandidate {
+    bool ssl;
+    uint16_t p;
+  };
+  std::vector<WsPortCandidate> candidates;
+  candidates.push_back({ isWss, port });
+  if (path.indexOf("samsung") >= 0) {
+    if (port == 8002) candidates.push_back({ false, 8001 });
+    else if (port == 8001) candidates.push_back({ true, 8002 });
+  }
 
-  client.onEvent([&](WStype_t type, uint8_t * pl, size_t length) {
-    if (type == WStype_CONNECTED) {
-      connected = true;
-      if (payload.length() > 0) {
-        client.sendTXT((uint8_t*)payload.c_str(), payload.length());
-        messageSent = true;
+  for (const auto& cand : candidates) {
+    WebSocketsClient client;
+    bool messageSent = false;
+    bool connected = false;
+
+    client.onEvent([&](WStype_t type, uint8_t * pl, size_t length) {
+      if (type == WStype_CONNECTED) {
+        connected = true;
+        if (payload.length() > 0) {
+          client.sendTXT((uint8_t*)payload.c_str(), payload.length());
+          messageSent = true;
+        }
       }
-    }
-  });
+    });
 
-  if (isWss) {
-    client.beginSSL(host.c_str(), port, path.c_str());
-  } else {
-    client.begin(host.c_str(), port, path.c_str());
+    if (cand.ssl) {
+      client.beginSSL(host.c_str(), cand.p, path.c_str());
+    } else {
+      client.begin(host.c_str(), cand.p, path.c_str());
+    }
+
+    unsigned long start = millis();
+    while (millis() - start < 1500) {
+      client.loop();
+      if (messageSent) {
+        delay(40);
+        break;
+      }
+      delay(10);
+    }
+
+    client.disconnect();
+    if (messageSent || connected) return true;
   }
 
-  unsigned long start = millis();
-  while (millis() - start < 1500) {
-    client.loop();
-    if (messageSent) {
-      delay(50);
-      break;
-    }
-    delay(10);
-  }
-
-  client.disconnect();
-  return (connected || messageSent);
+  return false;
 }
 
 // Generic WebSocket Pair / Token Handshake Listener
@@ -411,9 +442,11 @@ String TvController::listenForWsToken(const String& url, const String& handshake
     port = hostPort.substring(colonIdx + 1).toInt();
   }
 
+  if (port == 8002) isWss = true;
   // Safety correction: if port was unspecified or default HTTP (80) on a Samsung WS endpoint
   if ((port == 80 || port == 0) && path.indexOf("samsung") >= 0) {
-    port = 8001;
+    port = 8002;
+    isWss = true;
   }
 
   struct WsCandidate {
@@ -421,15 +454,13 @@ String TvController::listenForWsToken(const String& url, const String& handshake
     uint16_t port;
   };
   std::vector<WsCandidate> candidates;
-  candidates.push_back({ isWss || port == 8002, port });
 
-  // If targeting Samsung TV, provide fallback between WS (8001) and WSS (8002)
+  // For Samsung TVs, modern Tizen (2016-2025) requires WSS on 8002 for pairing
   if (path.indexOf("samsung") >= 0) {
-    if (port == 8001) {
-      candidates.push_back({ true, 8002 });
-    } else if (port == 8002) {
-      candidates.push_back({ false, 8001 });
-    }
+    candidates.push_back({ true, 8002 });
+    candidates.push_back({ false, 8001 });
+  } else {
+    candidates.push_back({ isWss || port == 8002, port });
   }
 
   String extractedToken = "";
@@ -454,6 +485,12 @@ String TvController::listenForWsToken(const String& url, const String& handshake
       } else if (type == WStype_TEXT && length > 0) {
         String msg = String((char*)pl).substring(0, length);
         Serial.println("[TV] WS Frame: " + msg);
+
+        if (msg.indexOf("ms.channel.unauthorized") >= 0) {
+          Serial.println("[TV] WS Unauthorized on this port, failing over to next candidate immediately.");
+          finished = true;
+          return;
+        }
 
         JsonDocument doc;
         DeserializationError err = deserializeJson(doc, msg);
@@ -491,12 +528,12 @@ String TvController::listenForWsToken(const String& url, const String& handshake
     }
 
     unsigned long candStart = millis();
-    uint32_t waitLimit = (candidates.size() > 1 && cIdx == 0) ? 4500 : (timeoutMs - (millis() - overallStart));
+    uint32_t waitLimit = (candidates.size() > 1 && cIdx == 0 && curPort == 8001) ? 3000 : (timeoutMs - (millis() - overallStart));
 
     while (millis() - candStart < waitLimit && millis() - overallStart < timeoutMs && !finished) {
       client.loop();
-      if (connected) {
-        // Connected! User may need time to click Allow on screen
+      if (connected && curPort != 8001) {
+        // Connected on pairing channel! Give user full time to click Allow on screen
         waitLimit = timeoutMs - (millis() - overallStart);
       }
       delay(20);
