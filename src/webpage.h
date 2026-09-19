@@ -882,12 +882,56 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
     header {
       display: flex;
       align-items: center;
+      gap: 8px;
+      padding: 4px 0 10px 0;
+    }
+    .ios-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.98rem;
+      font-weight: 500;
+      padding: 6px 8px 6px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s ease, transform 0.1s ease;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ios-back-btn:hover {
+      color: #60a5fa;
+    }
+    .ios-back-btn:active {
+      opacity: 0.45;
+      transform: scale(0.96);
+    }
+    .ios-back-chevron {
+      font-size: 1.55rem;
+      line-height: 1;
+      margin-top: -2px;
+      font-weight: 300;
+      display: inline-block;
+    }
+    .header-divider {
+      width: 1px;
+      height: 22px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
       gap: 10px;
-      padding: 8px 0;
+      min-width: 0;
     }
     .brand-icon {
       width: 28px;
       height: 28px;
+      flex-shrink: 0;
     }
     h1 {
       font-size: 1.2rem;
@@ -1027,10 +1071,14 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
 <body>
   <div class="container">
     <header>
-      <img src="/icon.svg" class="brand-icon" alt="TV icon">
-      <div>
-        <h1>Wi-Fi &amp; Device Setup</h1>
-        <small style="color: var(--text-muted); font-size: 0.75rem;">%ROOM_NAME% &bull; LilyGO T-Dongle-S3</small>
+      %BACK_LINK%
+      <div class="header-divider"></div>
+      <div class="header-brand">
+        <img src="/icon.svg" class="brand-icon" alt="TV icon">
+        <div>
+          <h1>Wi-Fi &amp; Device Setup</h1>
+          <small style="color: var(--text-muted); font-size: 0.75rem;">%ROOM_NAME% &bull; LilyGO T-Dongle-S3</small>
+        </div>
       </div>
     </header>
 
@@ -1241,8 +1289,6 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
         </details>
       </div>
     </div>
-
-    %BACK_LINK%
   </div>
 
   <script>

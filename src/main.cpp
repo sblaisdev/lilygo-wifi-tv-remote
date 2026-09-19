@@ -1611,8 +1611,8 @@ void setupRoutes() {
       html.replace("%CRYPTO_STATUS_BADGE%", "<span class=\"badge\" style=\"background:#ef444430;color:#f87171;border-color:#ef444460;\">&#x26A0; Hardware Encryption Offline</span>");
     }
 
-    // Back Link
-    html.replace("%BACK_LINK%", "<a href=\"/\" class=\"back-link\">&#x2190; Back to Remote Control</a>");
+    // Back Link (iOS standard chevron + label)
+    html.replace("%BACK_LINK%", "<a href=\"/\" class=\"ios-back-btn\" title=\"Back to Remote Control\"><span class=\"ios-back-chevron\">&#x2039;</span><span>Remote</span></a>");
 
     server.send(200, "text/html", html);
   });
