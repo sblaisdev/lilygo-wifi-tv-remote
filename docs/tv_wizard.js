@@ -242,7 +242,15 @@ async function loadTvCatalog() {
 
 function getBaseApiUrl() {
   const hostInput = document.getElementById('targetHost');
-  return (hostInput ? hostInput.value.trim() : '') || 'http://tv-remote.local';
+  if (hostInput && hostInput.value.trim()) {
+    return hostInput.value.trim().replace(/\/+$/, '');
+  }
+  if (window.location && window.location.origin && window.location.origin.startsWith('http')) {
+    if (!window.location.origin.includes('github.io') && !window.location.origin.startsWith('file')) {
+      return window.location.origin.replace(/\/+$/, '');
+    }
+  }
+  return 'http://tv-remote.local';
 }
 
 async function openTvWizard() {
@@ -279,7 +287,7 @@ function renderWizardModal() {
   }
 
   modal.innerHTML = `
-    <div class="modal-card" style="background:#181d28;border:1px solid #263043;border-radius:16px;max-width:520px;width:100%;padding:24px;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.6);position:relative;max-height:90vh;overflow-y:auto;">
+    <div class="modal-card" style="background:#181d28;border:1px solid #263043;border-radius:16px;max-width:520px;width:100%;padding:24px;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.6);position:relative;max-height:90vh;overflow-y:auto;text-align:left;box-sizing:border-box;">
       <button onclick="closeTvWizard()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer;">&times;</button>
       
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
@@ -1053,9 +1061,15 @@ function goToStep(step) {
 }
 
 // Auto-launch if URL has ?wizard=1
-window.addEventListener('DOMContentLoaded', () => {
+function checkAutoLaunchWizard() {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('wizard') === '1') {
     openTvWizard();
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', checkAutoLaunchWizard);
+} else {
+  checkAutoLaunchWizard();
+}

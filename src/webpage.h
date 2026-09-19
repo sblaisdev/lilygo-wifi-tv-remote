@@ -355,6 +355,7 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       </div>
       <div class="header-links">
         <div class="badge" id="connStatus">Connecting...</div>
+        <button onclick="openTvWizard()" class="config-link" title="Discover &amp; Add Smart TV" style="cursor: pointer; color: #60a5fa;">&#x1F4FA;</button>
         <a href="/setup" class="config-link" title="Setup &amp; Settings">&#x2699;</a>
       </div>
     </header>
@@ -830,7 +831,7 @@ const char PAGE_INDEX_TEMPLATE[] PROGMEM = R"rawliteral(
       }
     }
   </script>
-
+  <script src="/tv_wizard.js"></script>
 </body>
 </html>
 )rawliteral";
@@ -1132,7 +1133,7 @@ const char PAGE_SETUP_TEMPLATE[] PROGMEM = R"rawliteral(
           <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
             Control your TV directly over Wi-Fi without needing line-of-sight. Supports Roku, LG webOS, Samsung Tizen, and Sony Bravia.
           </p>
-          <a href="https://sblaisdev.github.io/lilygo-wifi-tv-remote/?wizard=1" target="_blank" rel="noopener noreferrer" class="btn-submit" style="display: block; text-align: center; text-decoration: none; background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px; margin: 0; font-weight: 600;">
+          <a href="/?wizard=1" class="btn-submit" style="display: block; text-align: center; text-decoration: none; background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px; margin: 0; font-weight: 600;">
             &#x2728; Discover &amp; Add Smart TV
           </a>
         </div>

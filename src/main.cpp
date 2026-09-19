@@ -26,6 +26,7 @@
 #include "default_profile.h"
 #include "webpage.h"
 #include "tv_controller.h"
+#include "tv_wizard_gz.h"
 #include <Update.h>
 #include <HTTPUpdate.h>
 #include <HTTPClient.h>
@@ -1525,6 +1526,12 @@ void setupRoutes() {
   // App Icon (SVG format for home screen and favicon)
   server.on("/icon.svg", HTTP_GET, []() {
     server.send(200, "image/svg+xml", PAGE_ICON_SVG);
+  });
+
+  // Smart TV Setup Wizard JavaScript bundle (served compressed directly from flash)
+  server.on("/tv_wizard.js", HTTP_GET, []() {
+    server.sendHeader("Content-Encoding", "gzip");
+    server.send_P(200, "application/javascript", (const char*)TV_WIZARD_JS_GZ, sizeof(TV_WIZARD_JS_GZ));
   });
 
   // Serve Web App Manifest
